@@ -139,7 +139,7 @@
 </div>
 
 <script>
-const LS='radar_creativos'; let DATA=null, VISTA='agente';
+const LS='radar_creativos'; let DATA=null, NOV=null, VISTA='agente';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const eur=n=>Number(n||0).toFixed(2)+'€';
 const num=n=>Number(n||0).toLocaleString('es-ES');
@@ -175,7 +175,10 @@ async function cargar(){
       body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
     const d=await r.json();
     if(!d.ok){document.getElementById('salida').innerHTML='<div class="err">'+esc(d.error)+'</div>';return;}
-    DATA=d; pinta();
+    DATA=d;
+    // Lo que el agente encontró de madrugada (si lo tiene activado)
+    if(c.codigo){ try{ NOV=await (await fetch('/api/agente/novedades?codigo='+encodeURIComponent(c.codigo))).json(); }catch(e){ NOV=null; } }
+    pinta();
   }catch(e){document.getElementById('salida').innerHTML='<div class="err">No se pudo conectar. Reinténtalo.</div>';}
 }
 
@@ -275,9 +278,60 @@ function tarjetaCreativo(c,tipo,d){
         <span>${esc(x.texto)}<br><span class="dato">${esc(x.dato)}</span></span></div>`).join('')}
     </div>${acc}</div>`;
 }
+function bloqueAgente24(){
+  const c=cfg()||{};
+  if(!c.codigo){
+    return `<div class="card" style="border:2px dashed var(--v);background:var(--v-bg)">
+      <div style="font-weight:800;font-size:16px;margin-bottom:4px">🌙 Activa el agente 24/7</div>
+      <p style="font-size:13.5px;margin:0 0 10px">Cada madrugada revisa tu cuenta y te deja escrito
+      <strong>qué ha cambiado</strong>: quién empezó a ganar, qué variante superó a su original y
+      qué se ha quedado sin fuelle. Por la mañana abres y el trabajo está hecho.</p>
+      <p class="hint" style="margin-bottom:12px">Para poder entrar de noche necesitamos guardar tu
+      token <strong>cifrado</strong> en el servidor. Puedes desactivarlo cuando quieras y se borra.</p>
+      <button class="mini" style="background:var(--v);padding:11px 18px;font-size:13.5px"
+              onclick="activarAgente(this)">Activar el agente 24/7</button></div>`;
+  }
+  const n=NOV||{};
+  if(!n.activo) return `<div class="card empty">El agente está activado pero aún no ha hecho su
+      primera ronda. Pasará esta madrugada.</div>`;
+  const items=(n.items||[]);
+  return `<div class="card" style="border-color:var(--v)">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
+      <div style="font-weight:800;font-size:16px">🌙 Lo que encontró el agente ${n.dia?'el '+esc(n.dia):''}</div>
+      <span class="pill p-v">agente activo</span>
+    </div>
+    ${items.length? items.map(i=>`<div style="padding:9px 0;border-top:1px dashed var(--line);font-size:13.5px">${esc(i.texto)}</div>`).join('')
+      : '<div class="empty">Sin cambios desde la última revisión.</div>'}
+    <div class="hint" style="margin-top:10px">Última revisión: ${esc(n.ultima_revision||'—')} ·
+      <a href="#" onclick="desactivarAgente(event)" style="color:var(--muted)">desactivar y borrar mi token</a></div>
+  </div>`;
+}
+async function activarAgente(btn){
+  const c=cfg(); if(!c) return;
+  const o=btn.textContent; btn.textContent='Activando…';
+  try{
+    const r=await fetch('/api/agente/activar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
+    const d=await r.json();
+    if(!d.ok){ alert(d.error||'No se pudo activar.'); btn.textContent=o; return; }
+    localStorage.setItem(LS,JSON.stringify({...c,codigo:d.codigo}));
+    alert('✅ Agente activado. Esta madrugada hará su primera ronda.\n\nTu código: '+d.codigo);
+    location.reload();
+  }catch(e){ btn.textContent=o; alert('No se pudo activar.'); }
+}
+async function desactivarAgente(ev){
+  ev.preventDefault();
+  if(!confirm('¿Desactivar el agente? Se borrará tu token del servidor.')) return;
+  const c=cfg(); if(!c||!c.codigo) return;
+  await fetch('/api/agente/desactivar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({codigo:c.codigo})});
+  const {codigo, ...resto}=c; localStorage.setItem(LS,JSON.stringify(resto)); location.reload();
+}
+
 function vistaAgente(d){
   const P=plan(d);
-  let h=`<div class="plan">
+  let h=bloqueAgente24();
+  h+=`<div class="plan">
     <h3>🤖 Tu plan de esta semana</h3>
     <div class="sub">Calculado con lo que está pasando ahora mismo en tu cuenta.</div>
     <div class="row"><span>Variantes de ganadores (${P.g} × 3)</span><b>${P.vg}</b></div>
@@ -339,7 +393,7 @@ async function copiarTodo(){
     // El informe lo escribe el servidor: así el botón y la skill del chat
     // dicen exactamente lo mismo.
     const r=await fetch('/api/briefing',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,codigo:c.codigo||'',rango:document.getElementById('selRango').value})});
     const t=await r.text();
     await navigator.clipboard.writeText(t);
     b.textContent='✓ Copiado — pégalo en tu chat';

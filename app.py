@@ -15,6 +15,7 @@ from flask import Flask, render_template, request
 
 import meta_api
 import radar
+import store
 
 app = Flask(__name__)
 
@@ -78,6 +79,46 @@ def api_radar():
     return out, 200
 
 
+@app.post("/api/agente/activar")
+def agente_activar():
+    """Activa el agente 24/7: a partir de aquí el servidor revisa la cuenta
+    cada madrugada. Requiere guardar el token (cifrado) — es el precio de que
+    alguien trabaje mientras el alumno duerme, y se le dice claramente."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    if not token or not cuenta:
+        return {"ok": False, "error": "Falta el token o la cuenta."}, 200
+    try:                       # comprobamos que el token sirve ANTES de guardarlo
+        meta_api.get_insights(token, cuenta, "campaign", "last_7d")
+    except Exception as e:
+        return {"ok": False, "error": f"Meta ha rechazado el token: {e}"}, 200
+    codigo = store.alta_cuenta(d.get("nombre", ""), token, cuenta,
+                               d.get("rango") or "last_7d")
+    return {"ok": True, "codigo": codigo}, 200
+
+
+@app.post("/api/agente/desactivar")
+def agente_desactivar():
+    """Apaga el agente y BORRA el token. Sin preguntas ni rastro."""
+    d = request.get_json(silent=True) or {}
+    store.baja_cuenta((d.get("codigo") or "").strip())
+    return {"ok": True}, 200
+
+
+@app.get("/api/agente/novedades")
+def agente_novedades():
+    """Lo que el agente encontró en su última ronda."""
+    codigo = (request.args.get("codigo") or "").strip()
+    cta = store.get_cuenta(codigo) if codigo else None
+    if not cta:
+        return {"ok": False, "activo": False}, 200
+    nov = store.ultimas_novedades(codigo)
+    return {"ok": True, "activo": True, "nombre": cta.get("nombre", ""),
+            "ultima_revision": cta.get("ultima_revision", ""),
+            "dia": nov["dia"], "items": nov["items"]}, 200
+
+
 @app.post("/api/briefing")
 def api_briefing():
     """El mismo informe, ya escrito para que lo lea una IA.
@@ -100,7 +141,17 @@ def api_briefing():
                 {"Content-Type": "text/plain; charset=utf-8"})
     an = radar.analiza(filas)
     an["rango"] = rango
-    return (radar.texto_para_ia(an), 200, {"Content-Type": "text/plain; charset=utf-8"})
+    texto = radar.texto_para_ia(an)
+    # Si tiene el agente 24/7 activado, se cuela lo que encontró esta noche:
+    # así el chat sabe también qué CAMBIÓ, no solo cómo están las cosas.
+    codigo = (d.get("codigo") or "").strip()
+    if codigo:
+        nov = store.ultimas_novedades(codigo)
+        if nov["items"]:
+            lineas = "\n".join("  · " + i["texto"] for i in nov["items"])
+            texto += (f"\n\n🌙 LO QUE ENCONTRÓ EL AGENTE EN SU ÚLTIMA RONDA "
+                      f"({nov['dia']})\n{lineas}")
+    return (texto, 200, {"Content-Type": "text/plain; charset=utf-8"})
 
 
 if __name__ == "__main__":
