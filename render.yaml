@@ -1,0 +1,8 @@
+# Despliegue en Render.com — "New Blueprint" apuntando a este repositorio.
+services:
+  - type: web
+    name: radar-creativos
+    runtime: python
+    plan: starter                # no hay base de datos ni archivos: le sobra
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 120

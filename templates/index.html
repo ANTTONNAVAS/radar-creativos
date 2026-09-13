@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar de Creativos</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#12151c;--muted:#6b7280;--line:#e7e3dc;--bg:#f6f7f9;--card:#fff;
+        --g:#0f9d63;--g-bg:#e7f6ee;--a:#b8860b;--a-bg:#fbf3df;--r:#b3122e;--r-bg:#fbe9ec;
+        --b:#1090e0;--b-bg:#e7f1fb;--m:#8892a0;--m-bg:#eef0f3;--v:#6d3bd4;--v-bg:#efe9fb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Poppins,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+       color:var(--ink);background:var(--bg);font-size:15px;line-height:1.5}
+  .top{background:var(--ink);color:#fff;padding:15px 20px;display:flex;align-items:center;
+       justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .top .b{font-weight:800;font-size:18px;display:flex;align-items:center;gap:9px}
+  .top .b small{font-weight:500;opacity:.55;font-size:12.5px}
+  .top button{font-family:inherit;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);
+              border:none;border-radius:8px;padding:7px 13px;cursor:pointer}
+  .tabs{background:var(--ink);padding:0 20px;display:flex;gap:4px;overflow-x:auto}
+  .tab{font-family:inherit;font-size:14px;font-weight:700;color:rgba(255,255,255,.6);background:none;
+       border:none;border-bottom:3px solid transparent;padding:11px 16px;cursor:pointer;white-space:nowrap}
+  .tab.on{color:#fff;border-bottom-color:#fff}
+  .wrap{max-width:920px;margin:0 auto;padding:22px 16px 70px}
+  h2{font-size:17px;margin:28px 0 4px;padding-left:11px;border-left:5px solid var(--ink)}
+  h2.g{border-color:var(--g)}h2.a{border-color:var(--a)}h2.r{border-color:var(--r)}
+  h2.b{border-color:var(--b)}h2.v{border-color:var(--v)}
+  .h2sub{color:var(--muted);font-size:13px;margin:0 0 13px 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+  .setup{max-width:560px;margin:40px auto}
+  .setup h1{font-size:23px;margin:0 0 6px}
+  .lead{color:var(--muted);margin:0 0 22px}
+  label{display:block;font-size:13px;font-weight:700;margin:16px 0 6px}
+  input,select{width:100%;font-family:inherit;font-size:15px;padding:12px 13px;border:1px solid var(--line);
+               border-radius:10px;background:#fff;color:var(--ink)}
+  .go{width:100%;margin-top:20px;background:var(--ink);color:#fff;border:none;border-radius:11px;
+      padding:15px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .err{background:var(--r-bg);color:var(--r);border-radius:10px;padding:12px 14px;font-size:13.5px;
+       font-weight:600;margin-top:16px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .kpi .n{font-size:22px;font-weight:800;line-height:1.15}
+  .kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid var(--line);
+        border-radius:12px;overflow:hidden}
+  th,td{padding:9px 11px;text-align:right;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{background:#faf8f5;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .tbl{overflow-x:auto;border-radius:12px}
+  .cre{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between}
+  .cre .name{font-weight:700;font-size:15.5px}
+  .adname{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--muted);
+          margin-top:3px;word-break:break-all}
+  .stats{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:13px}
+  .stats span{color:var(--muted)}
+  .pill{display:inline-block;font-size:11.5px;font-weight:800;padding:4px 11px;border-radius:20px;white-space:nowrap}
+  .p-g{background:var(--g-bg);color:var(--g)}.p-a{background:var(--a-bg);color:var(--a)}
+  .p-r{background:var(--r-bg);color:var(--r)}.p-b{background:var(--b-bg);color:var(--b)}
+  .p-m{background:var(--m-bg);color:var(--m)}.p-v{background:var(--v-bg);color:var(--v)}
+  .diag{margin-top:13px;background:#fbfaf8;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .diag .res{font-weight:700;font-size:13.5px;margin-bottom:9px}
+  .paso{display:flex;gap:9px;padding:6px 0;border-top:1px dashed #eee;font-size:13px;align-items:flex-start}
+  .paso:first-of-type{border-top:none}
+  .paso .ic{flex-shrink:0}
+  .paso .fase{font-weight:700;min-width:66px;flex-shrink:0}
+  .paso .dato{color:var(--muted);font-size:12px}
+  .todo{margin-top:12px;padding:12px 14px;border-radius:11px;background:var(--g-bg);font-size:13.5px}
+  .todo .t{font-weight:800;color:var(--g);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .copyname{display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap}
+  .copyname code{flex:1;min-width:190px;background:#fff;border:1px dashed var(--g);border-radius:8px;
+                 padding:8px 11px;font-size:12.5px;word-break:break-all}
+  .mini{font-family:inherit;font-size:12px;font-weight:700;border:none;border-radius:8px;padding:8px 13px;
+        cursor:pointer;background:var(--g);color:#fff}
+  .empty{color:var(--m);font-size:13.5px;padding:14px 2px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .bigcopy{background:var(--v);color:#fff;border:none;border-radius:11px;padding:13px 20px;font-size:14.5px;
+           font-weight:800;cursor:pointer;font-family:inherit}
+  .rango{width:auto;font-size:13.5px;padding:9px 12px}
+  .plan{background:linear-gradient(135deg,#6d3bd4,#4a23a0);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:14px}
+  .plan h3{margin:0 0 4px;font-size:19px}
+  .plan .sub{opacity:.85;font-size:13px;margin-bottom:14px}
+  .plan .row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,.2);font-size:14px}
+  .plan .tot{font-weight:800;font-size:17px;border-top:2px solid rgba(255,255,255,.4);padding-top:11px;margin-top:4px}
+  details.guia{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-top:26px}
+  details.guia summary{font-weight:800;cursor:pointer;font-size:15px}
+  details.guia h4{margin:18px 0 6px;font-size:13.5px}
+  details.guia p,details.guia li{font-size:13.5px;color:#333}
+  details.guia code{background:var(--m-bg);padding:2px 7px;border-radius:6px;font-size:12.5px}
+  .load{text-align:center;padding:60px 20px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="b">📡 Radar de Creativos <small id="cuentaLbl"></small></div>
+  <button id="btnSalir" style="display:none" onclick="salir()">Cambiar cuenta</button>
+</div>
+<div class="tabs" id="tabs" style="display:none">
+  <button class="tab" data-v="camp" onclick="ver('camp')">📊 Campañas</button>
+  <button class="tab" data-v="form" onclick="ver('form')">🎬 Formatos</button>
+  <button class="tab on" data-v="agente" onclick="ver('agente')">🤖 El Agente</button>
+</div>
+
+<!-- ============ CONFIGURACIÓN ============ -->
+<div class="wrap setup" id="setup" style="display:none">
+  <h1>Conecta tu cuenta de Meta</h1>
+  <p class="lead">Se hace una sola vez. Tus datos se guardan <strong>en este navegador</strong>:
+     no se envían a ningún sitio ni los guardamos nosotros.</p>
+  <div class="card">
+    <label>Token de acceso de Meta</label>
+    <input id="inToken" type="password" placeholder="EAAG...">
+    <p class="hint">En <strong>business.facebook.com → Configuración del negocio → Usuarios del
+       sistema</strong> → Generar token con permiso <code>ads_read</code>. Paso a paso en la guía.</p>
+    <label>ID de la cuenta publicitaria</label>
+    <input id="inCuenta" placeholder="1234567890">
+    <p class="hint">El número de arriba en el Administrador de Anuncios (sin el <code>act_</code>).</p>
+    <button class="go" onclick="guardar()">Entrar</button>
+    <div id="setupErr"></div>
+  </div>
+  <div id="guiaSetup"></div>
+</div>
+
+<!-- ============ PANEL ============ -->
+<div class="wrap" id="panel" style="display:none">
+  <div class="bar">
+    <select class="rango" id="selRango" onchange="cargar()">
+      <option value="last_7d">Últimos 7 días</option>
+      <option value="last_14d">Últimos 14 días</option>
+      <option value="last_30d">Últimos 30 días</option>
+    </select>
+    <button class="bigcopy" id="btnCopiar" onclick="copiarTodo()">📋 Copiar para el chat de creativos</button>
+  </div>
+  <div id="salida"><div class="load">Leyendo tu cuenta…</div></div>
+  <div id="guiaPanel"></div>
+</div>
+
+<script>
+const LS='radar_creativos'; let DATA=null, VISTA='agente';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const eur=n=>Number(n||0).toFixed(2)+'€';
+const num=n=>Number(n||0).toLocaleString('es-ES');
+function cfg(){try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}}
+
+function init(){
+  document.getElementById('guiaSetup').innerHTML=guiaHTML();
+  document.getElementById('guiaPanel').innerHTML=guiaHTML();
+  const c=cfg();
+  if(c&&c.token&&c.cuenta){
+    document.getElementById('panel').style.display='';
+    document.getElementById('tabs').style.display='';
+    document.getElementById('btnSalir').style.display='';
+    document.getElementById('cuentaLbl').textContent='· cuenta '+c.cuenta;
+    cargar();
+  } else document.getElementById('setup').style.display='';
+}
+function guardar(){
+  const t=document.getElementById('inToken').value.trim();
+  const a=document.getElementById('inCuenta').value.trim().replace('act_','');
+  if(!t||!a){document.getElementById('setupErr').innerHTML='<div class="err">Rellena los dos campos.</div>';return;}
+  localStorage.setItem(LS,JSON.stringify({token:t,cuenta:a})); location.reload();
+}
+function salir(){localStorage.removeItem(LS); location.reload();}
+function ver(v){VISTA=v; document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('btnCopiar').style.display = v==='agente'?'':'none'; if(DATA) pinta();}
+
+async function cargar(){
+  const c=cfg(); if(!c) return;
+  document.getElementById('salida').innerHTML='<div class="load">Leyendo tu cuenta…</div>';
+  try{
+    const r=await fetch('/api/radar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
+    const d=await r.json();
+    if(!d.ok){document.getElementById('salida').innerHTML='<div class="err">'+esc(d.error)+'</div>';return;}
+    DATA=d; pinta();
+  }catch(e){document.getElementById('salida').innerHTML='<div class="err">No se pudo conectar. Reinténtalo.</div>';}
+}
+
+/* ---------- 📊 CAMPAÑAS ---------- */
+function vistaCampanas(d){
+  const t=d.campanas.reduce((a,c)=>({s:a.s+c.spend,p:a.p+c.purchases,r:a.r+c.revenue}),{s:0,p:0,r:0});
+  let h=`<div class="kpis">
+    <div class="kpi"><div class="n">${eur(t.s)}</div><div class="l">Invertido</div></div>
+    <div class="kpi"><div class="n">${num(t.p)}</div><div class="l">Ventas</div></div>
+    <div class="kpi"><div class="n">${(t.s?t.r/t.s:0).toFixed(2)}</div><div class="l">ROAS</div></div>
+    <div class="kpi"><div class="n">${t.p?eur(t.s/t.p):'—'}</div><div class="l">Coste por venta</div></div>
+  </div>`;
+  h+='<h2>📊 Tus campañas</h2><p class="h2sub">Dónde va el dinero y qué devuelve cada una.</p>';
+  h+='<div class="tbl"><table><thead><tr><th>Campaña</th><th>Gasto</th><th>CPM</th><th>CTR</th>'+
+     '<th>Visitas</th><th>Carritos</th><th>Ventas</th><th>Coste/venta</th><th>ROAS</th></tr></thead><tbody>';
+  h+=d.campanas.map(c=>`<tr>
+      <td>${esc(c.nombre)}</td><td>${eur(c.spend)}</td><td>${eur(c.cpm)}</td><td>${c.ctr}%</td>
+      <td>${num(c.lpv)}</td><td>${num(c.atc)}</td><td>${num(c.purchases)}</td>
+      <td>${c.purchases?eur(c.cpa):'—'}</td>
+      <td style="color:${c.roas>=2?'var(--g)':(c.roas>=1?'var(--a)':'var(--r)')};font-weight:700">${c.roas}</td>
+    </tr>`).join('')||'<tr><td colspan="9" class="empty">Sin campañas en este periodo.</td></tr>';
+  return h+'</tbody></table></div>';
+}
+
+/* ---------- 🎬 FORMATOS ---------- */
+function vistaFormatos(d){
+  let h='<h2>🎬 Qué formatos te funcionan</h2><p class="h2sub">No el anuncio suelto: el CONCEPTO. '+
+        'Aquí ves qué tipo de creativo deberías repetir.</p>';
+  const fs=(d.formatos||[]).filter(f=>f.formato!=='(SIN FORMATO)');
+  if(!fs.length) return h+'<div class="card empty">Aún no hay formatos que medir. Nombra tus anuncios con la nomenclatura (mira la guía) y volverán a aparecer aquí.</div>';
+  h+=fs.map(f=>{
+    const cl=f.score>=70?'p-g':(f.score>=40?'p-a':'p-r');
+    return `<div class="card">
+      <div class="cre">
+        <div style="flex:1;min-width:200px">
+          <div class="name">${esc(f.formato)}</div>
+          <div class="hint">${f.n_creativos} creativo${f.n_creativos!==1?'s':''}${f.angulos.length?' · ángulos: '+f.angulos.map(esc).join(', '):''}</div>
+        </div>
+        <span class="pill ${cl}">${esc(f.veredicto)} · ${f.score}/100</span>
+      </div>
+      <div class="stats">
+        <div><b>${eur(f.spend)}</b> <span>gastado</span></div>
+        <div><b>${f.purchases}</b> <span>ventas</span></div>
+        <div><b>${f.roas}</b> <span>ROAS</span></div>
+        <div><b>${f.hook_rate}%</b> <span>hook</span></div>
+        <div><b>${f.purchases?eur(f.cpa):'—'}</b> <span>coste/venta</span></div>
+      </div></div>`}).join('');
+  return h;
+}
+
+/* ---------- 🤖 EL AGENTE ---------- */
+function plan(d){
+  const g=d.ganadores.length, p=d.promesas.length, hu=Math.min((d.huecos||[]).length,6);
+  const vg=g*3, vp=p*2, vt=hu;
+  let total=vg+vp+vt, extra=0;
+  if(total<25){ extra=25-total; total=25; }          // el objetivo son 25-30 a la semana
+  return {vg,vp,vt,extra,total,g,p,hu};
+}
+function tarjetaCreativo(c,tipo,d){
+  const L=(d.linaje||[]).find(l=>l.familia===c.familia);
+  const dg=c.diag||{pasos:[],replicar:[],arreglar:[]};
+  const pill=tipo==='g'?'p-g':(tipo==='a'?'p-a':'p-r');
+  const txt =tipo==='g'?'🟢 GANADOR':(tipo==='a'?'🟡 PROMESA':'🔴 MATAR');
+  let acc='';
+  if(tipo!=='r'&&L){
+    acc=`<div class="todo">
+      <div class="t">✅ Qué producir</div>
+      ${tipo==='g'?'<b>3 variantes</b>':'<b>2 variantes</b>'} de este creativo. Mantén
+      ${dg.replicar.length?esc(dg.replicar.join(' y ')):'el guion'}; cambia gancho, avatar y escenario.
+      ${dg.arreglar.length?'<br><b>Y arregla:</b> '+esc(dg.arreglar.join('; '))+'.':''}
+      <div class="copyname">
+        <code>${esc(L.siguiente_nombre)}</code>
+        <button class="mini" onclick="copiar(this.previousElementSibling.textContent,this)">Copiar nombre</button>
+      </div></div>`;
+  }
+  if(tipo==='r'){
+    acc=`<div class="todo" style="background:var(--r-bg)"><div class="t" style="color:var(--r)">🛑 Qué hacer</div>
+      Apágalo: ${eur(c.spend)} sin vender. ${dg.arreglar.length?'Antes de repetir la idea, '+esc(dg.arreglar[0])+'.':''}</div>`;
+  }
+  return `<div class="card">
+    <div class="cre">
+      <div style="flex:1;min-width:210px"><div class="name">${esc(c.etiqueta)}</div>
+        <div class="adname">${esc(c.ad_name)}</div></div>
+      <span class="pill ${pill}">${txt}</span>
+    </div>
+    <div class="stats">
+      <div><b>${eur(c.spend)}</b> <span>gastado</span></div>
+      <div><b>${c.purchases}</b> <span>ventas</span></div>
+      <div><b>${c.roas}</b> <span>ROAS</span></div>
+      <div><b>${c.hook_rate}%</b> <span>hook</span></div>
+      <div><b>${c.score}</b><span>/100</span></div>
+    </div>
+    <div class="diag">
+      <div class="res">🔍 ${esc(dg.resumen||'')}</div>
+      ${dg.pasos.map(x=>`<div class="paso"><span class="ic">${x.ok?'✅':'⚠️'}</span>
+        <span class="fase">${esc(x.fase)}</span>
+        <span>${esc(x.texto)}<br><span class="dato">${esc(x.dato)}</span></span></div>`).join('')}
+    </div>${acc}</div>`;
+}
+function vistaAgente(d){
+  const P=plan(d);
+  let h=`<div class="plan">
+    <h3>🤖 Tu plan de esta semana</h3>
+    <div class="sub">Calculado con lo que está pasando ahora mismo en tu cuenta.</div>
+    <div class="row"><span>Variantes de ganadores (${P.g} × 3)</span><b>${P.vg}</b></div>
+    <div class="row"><span>Variantes de promesas (${P.p} × 2)</span><b>${P.vp}</b></div>
+    <div class="row"><span>Tests nuevos sin probar</span><b>${P.vt}</b></div>
+    ${P.extra?`<div class="row"><span>Ángulos nuevos para llegar al objetivo</span><b>${P.extra}</b></div>`:''}
+    <div class="row tot"><span>Creativos a producir</span><b>${P.total}</b></div>
+  </div>`;
+
+  h+='<h2 class="v">🧠 Qué está funcionando y por qué</h2>'+
+     '<p class="h2sub">El agente mira el recorrido completo de cada vídeo: gancho → guion → clic → landing → cierre.</p>';
+  h+= d.ganadores.length ? d.ganadores.map(c=>tarjetaCreativo(c,'g',d)).join('') : '';
+  h+= d.promesas.length  ? d.promesas.map(c=>tarjetaCreativo(c,'a',d)).join('')  : '';
+  if(!d.ganadores.length && !d.promesas.length)
+    h+='<div class="card empty">Todavía no hay creativos con datos suficientes. Necesitas más gasto o más anuncios en marcha.</div>';
+
+  if(d.matar.length){
+    h+='<h2 class="r">🔴 Apagar ya</h2><p class="h2sub">Están quemando presupuesto sin devolver nada.</p>';
+    h+=d.matar.map(c=>tarjetaCreativo(c,'r',d)).join('');
+  }
+  if((d.huecos||[]).length){
+    h+='<h2 class="b">🧪 Probar esta semana</h2><p class="h2sub">Cruces que aún no has hecho, partiendo de lo que ya te funciona.</p><div class="card">';
+    h+=d.huecos.slice(0,6).map(x=>`<div style="padding:8px 0;border-bottom:1px dashed var(--line)">
+        <b>${esc(x.angulo)}</b> × <b>${esc(x.formato)}</b><div class="hint">${esc(x.razon)}</div></div>`).join('');
+    h+='</div>';
+  }
+  if((d.linaje||[]).some(l=>l.generaciones.length>1)){
+    h+='<h2 class="v">📈 Qué ha aprendido el sistema</h2><p class="h2sub">Si una variante superó a su original, esa pasa a ser la nueva madre.</p><div class="card">';
+    h+=d.linaje.filter(l=>l.generaciones.length>1).map(l=>`<div style="padding:8px 0;border-bottom:1px dashed var(--line)">
+        <b>${esc(l.etiqueta)}</b> — ${l.generaciones.map(g=>'V'+g.v+' ('+g.score+')').join(' → ')}
+        <div class="hint">${esc(l.aprendizaje)}</div></div>`).join('');
+    h+='</div>';
+  }
+  const av=(d.mal_nombrados||[]).length+(d.sin_variante||[]).length;
+  if(av){
+    h+='<h2>⚠️ Esto me deja ciego</h2><p class="h2sub">Corrígelo y el agente verá mucho mejor.</p><div class="card">';
+    if((d.mal_nombrados||[]).length) h+=`<p><b>${d.mal_nombrados.length} anuncios sin nomenclatura</b> — no los puedo analizar:<br>
+      <span class="adname">${d.mal_nombrados.slice(0,6).map(esc).join(' · ')}</span></p>`;
+    if((d.sin_variante||[]).length) h+=`<p><b>${d.sin_variante.length} anuncios sin número de variante</b> — sin el <code>V#</code> no sé si mejoran a su original.</p>`;
+    h+='</div>';
+  }
+  return h;
+}
+
+function pinta(){
+  const d=DATA;
+  document.getElementById('salida').innerHTML =
+    VISTA==='camp' ? vistaCampanas(d) : VISTA==='form' ? vistaFormatos(d) : vistaAgente(d);
+}
+
+/* ---------- copiar ---------- */
+function copiar(t,btn){navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;
+  btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=o,1400)})}
+function copiarTodo(){
+  const d=DATA; if(!d) return; const P=plan(d);
+  const L=f=>(d.linaje||[]).find(x=>x.familia===f);
+  const bloque=(c,n)=>{const l=L(c.familia), g=c.diag||{};
+    return `  · ${c.etiqueta} — nota ${c.score}, ROAS ${c.roas}, hook ${c.hook_rate}%, ${eur(c.spend)}\n`+
+           `    POR QUÉ: ${g.resumen||''}\n`+
+           (g.replicar&&g.replicar.length?`    CONSERVAR: ${g.replicar.join('; ')}\n`:'')+
+           (g.arreglar&&g.arreglar.length?`    CORREGIR: ${g.arreglar.join('; ')}\n`:'')+
+           `    HACER: ${n} variantes. Nombre de la siguiente: ${l?l.siguiente_nombre:c.ad_name+'_V2'}`};
+  let t=`ESTADO DE MIS CREATIVOS (${d.rango}) — ${eur(d.gasto_total)} invertidos · ${d.ventas} ventas · ${d.n_creativos} creativos\n`;
+  t+=`\nOBJETIVO DE LA SEMANA: ${P.total} creativos\n`;
+  t+=`\n🟢 GANADORES — clonar en variantes\n`+(d.ganadores.length?d.ganadores.map(c=>bloque(c,3)).join('\n')+'\n':'  (ninguno todavía)\n');
+  if(d.promesas.length) t+=`\n🟡 PROMESAS — enganchan, aún no cierran\n`+d.promesas.map(c=>bloque(c,2)).join('\n')+'\n';
+  if(d.matar.length) t+=`\n🔴 MATAR — no repetir esta idea\n`+d.matar.map(c=>
+      `  · ${c.etiqueta} — ${eur(c.spend)} sin ventas. ${(c.diag||{}).resumen||''}`).join('\n')+'\n';
+  if((d.huecos||[]).length) t+=`\n🧪 SIN PROBAR — explorar sobre lo que funciona\n`+
+      d.huecos.slice(0,6).map(x=>`  · ${x.angulo} × ${x.formato} — ${x.razon}`).join('\n')+'\n';
+  const lin=(d.linaje||[]).filter(l=>l.generaciones.length>1);
+  if(lin.length) t+=`\n📈 APRENDIZAJE\n`+lin.map(l=>
+      `  · ${l.etiqueta}: ${l.generaciones.map(g=>'V'+g.v+'('+g.score+')').join(' → ')} — ${l.aprendizaje}`).join('\n')+'\n';
+  t+=`\nINSTRUCCIÓN: prepárame los creativos de arriba respetando el POR QUÉ de cada uno `+
+     `(conserva lo que funciona, corrige lo que se rompe). En las variantes cambia gancho, `+
+     `avatar y escenario, nunca el guion que ya gana. Nombra cada creativo con su número de `+
+     `variante exacto. Antes de escribir, dime qué vas a hacer para que lo revise.`;
+  navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('btnCopiar');
+    const o=b.textContent; b.textContent='✓ Copiado — pégalo en tu chat';
+    setTimeout(()=>b.textContent=o,2400)});
+}
+
+/* ---------- guía ---------- */
+function guiaHTML(){return `
+<details class="guia">
+  <summary>📖 Guía: cómo se usa esto (léela una vez)</summary>
+  <h4>1. Para qué sirve</h4>
+  <p>Tres pestañas: <strong>Campañas</strong> (dónde va tu dinero), <strong>Formatos</strong>
+  (qué tipo de creativo te funciona) y <strong>El Agente</strong>, que te dice qué producir esta
+  semana y <strong>por qué</strong> funciona cada creativo.</p>
+
+  <h4>2. La regla de oro: el nombre del anuncio</h4>
+  <p>El sistema entiende tus creativos <strong>por el nombre</strong>. Si nombras mal, se queda ciego:</p>
+  <p><code>L3_M_HIN_TIMELINE_V1_PROGRESO VIDEO</code></p>
+  <ul>
+    <li><code>L3</code> — nivel de consciencia (L1 a L5)</li>
+    <li><code>M</code> — embudo: <code>T</code> frío · <code>M</code> templado · <code>B</code> caliente</li>
+    <li><code>HIN</code> — el ángulo o dolor que atacas</li>
+    <li><code>TIMELINE</code> — el formato (podcast, UGC, antes-después, unboxing…)</li>
+    <li><code>V1</code> — <strong>número de variante: obligatorio</strong>. Es lo que permite saber
+        si una variante supera a la original</li>
+    <li><code>PROGRESO</code> — el concepto, y al final <code>VIDEO</code> o <code>EST</code></li>
+  </ul>
+
+  <h4>3. El bucle que no para de mejorar</h4>
+  <ol>
+    <li>Publicas creativos con esa nomenclatura.</li>
+    <li>El agente detecta cuáles ganan y <strong>en qué fase ganan</strong>: si el gancho, el guion,
+        el clic o el cierre.</li>
+    <li>De los ganadores haces <strong>variantes</strong>: mismo guion, cambias gancho, avatar y
+        escenario. Solo subes el número: V1 → V2 → V3.</li>
+    <li>El agente te dice si la variante superó a su madre. La ganadora pasa a ser la nueva madre.</li>
+    <li>Además te propone <strong>qué explorar</strong>, siempre partiendo de lo que ya te funciona.</li>
+  </ol>
+  <p>Cada vuelta el sistema sabe un poco más, y llegar a 25-30 creativos a la semana deja de ser
+  un problema de ideas.</p>
+
+  <h4>4. Cómo se conecta con la IA</h4>
+  <p>Pulsa <strong>📋 Copiar para el chat de creativos</strong> y pégalo en tu chat. La IA ya sabrá
+  tus números, tus ganadores, <strong>por qué</strong> funcionan y con qué nombre va cada variante.
+  Tú revisas su propuesta antes de producir: manda siempre tu criterio.</p>
+
+  <h4>5. Cómo conseguir el token de Meta</h4>
+  <ol>
+    <li><strong>business.facebook.com</strong> → ⚙️ Configuración del negocio.</li>
+    <li><strong>Usuarios del sistema</strong> → Agregar → nombre libre, rol Empleado.</li>
+    <li><strong>Asignar activos</strong> → tu cuenta publicitaria → permiso "Ver rendimiento".</li>
+    <li><strong>Generar token</strong> → tu app → caducidad <em>Nunca</em> → marca <code>ads_read</code>.</li>
+    <li>Copia el token (<code>EAA…</code>) y pégalo aquí. Solo se muestra una vez.</li>
+  </ol>
+  <p class="hint">El token es de <strong>solo lectura</strong>: ve tus métricas, no puede tocar
+  campañas ni gastar dinero.</p>
+</details>`}
+init();
+</script>
+</body>
+</html>
