@@ -173,3 +173,25 @@ def ultimas_novedades(codigo):
                       (codigo, d)).fetchall()
     c.close()
     return {"dia": d, "items": [dict(f) for f in filas]}
+
+
+# --- Marca de la última ronda del agente (para no repetirla el mismo día) ---
+def _kv():
+    c = conn()
+    c.execute("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)")
+    c.commit()
+    return c
+
+
+def get_kv(k, defecto=""):
+    c = _kv()
+    f = c.execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
+    c.close()
+    return f["v"] if f else defecto
+
+
+def set_kv(k, v):
+    c = _kv()
+    c.execute("INSERT OR REPLACE INTO kv (k,v) VALUES (?,?)", (k, str(v)))
+    c.commit()
+    c.close()

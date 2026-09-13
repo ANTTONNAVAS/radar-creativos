@@ -4,10 +4,13 @@ RADAR DE CREATIVOS — SaaS simple para los alumnos.
 Una sola página: el alumno pega su token de Meta, ve qué creativos están
 ganando y qué tiene que producir ahora. Nada más.
 
-Decisión de diseño (importante): NO hay base de datos ni cuentas de usuario.
+Decisión de diseño (importante): NO hay cuentas de usuario ni contraseñas.
 El token vive en el navegador del alumno (localStorage) y se manda en cada
-consulta. El servidor no guarda nada de nadie: así no hay datos sensibles que
-custodiar, ni altas, ni contraseñas, ni mantenimiento por alumno.
+consulta; por defecto el servidor no guarda nada de nadie.
+
+La única excepción es quien ACTIVA el agente 24/7: para poder revisar su
+cuenta de madrugada hay que guardar su token, y se guarda cifrado (store.py).
+Es opcional y reversible — al desactivarlo, el token se borra.
 """
 import os
 
@@ -152,6 +155,48 @@ def api_briefing():
             texto += (f"\n\n🌙 LO QUE ENCONTRÓ EL AGENTE EN SU ÚLTIMA RONDA "
                       f"({nov['dia']})\n{lineas}")
     return (texto, 200, {"Content-Type": "text/plain; charset=utf-8"})
+
+
+# ---------------------------------------------------------------------------
+# 🌙 EL AGENTE 24/7 vive DENTRO de este servicio, en segundo plano.
+#
+# Por qué aquí y no en un cron aparte: en Render los discos NO se comparten
+# entre servicios, así que un cron separado no vería las cuentas guardadas.
+# Un hilo dentro del propio servicio ve la misma base de datos, cuesta la
+# mitad y no hay nada más que configurar.
+#
+# Cada media hora mira si ya pasó la hora de la ronda y si hoy aún no se ha
+# hecho. Si el servicio se reinicia, al volver lo comprueba otra vez: no se
+# salta ninguna noche.
+# ---------------------------------------------------------------------------
+HORA_RONDA = int(os.getenv("HORA_RONDA", "3"))      # madrugada, hora del servidor
+
+
+def _bucle_agente():
+    import time
+    from datetime import datetime
+    import nocturno
+    while True:
+        try:
+            ahora = datetime.now()
+            hoy = ahora.date().isoformat()
+            if ahora.hour >= HORA_RONDA and store.get_kv("ultima_ronda") != hoy:
+                if store.cuentas():                  # solo si alguien lo activó
+                    print(f"[agente] ronda de {hoy}", flush=True)
+                    nocturno.main()
+                store.set_kv("ultima_ronda", hoy)
+        except Exception as e:
+            print(f"[agente] fallo en la ronda: {e}", flush=True)
+        time.sleep(1800)                              # media hora
+
+
+def _arranca_agente():
+    import threading
+    store.init()
+    threading.Thread(target=_bucle_agente, daemon=True).start()
+
+
+_arranca_agente()
 
 
 if __name__ == "__main__":

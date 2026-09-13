@@ -1,12 +1,13 @@
 # Despliegue en Render.com — "New" → "Blueprint" → este repositorio → Apply.
+# Un solo servicio: la web Y el agente 24/7 (el agente corre en segundo plano
+# dentro del mismo servicio, porque en Render los discos no se comparten).
 services:
-  # La web que ve el alumno
   - type: web
     name: radar-creativos
     runtime: python
-    plan: starter
+    plan: starter            # necesario para el disco y para que no se duerma
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 120
+    startCommand: gunicorn app:app --workers 1 --threads 8 --timeout 120
     disk:
       name: datos
       mountPath: /data       # solo guarda los tokens CIFRADOS de quien active el 24/7
@@ -16,24 +17,5 @@ services:
         value: /data
       - key: CLAVE_TOKENS    # clave con la que se cifran los tokens en reposo
         generateValue: true  # Render la genera sola; no la ve nadie
-
-  # 🌙 EL AGENTE 24/7: se ejecuta solo cada madrugada
-  - type: cron
-    name: agente-nocturno
-    runtime: python
-    plan: starter
-    schedule: "17 3 * * *"   # 03:17 cada día (fuera de las horas punta de Meta)
-    buildCommand: pip install -r requirements.txt
-    startCommand: python nocturno.py
-    disk:
-      name: datos            # el mismo disco que la web: ve las mismas cuentas
-      mountPath: /data
-      sizeGB: 1
-    envVars:
-      - key: DATA_DIR
-        value: /data
-      - key: CLAVE_TOKENS
-        fromService:         # comparte clave con la web, si no no podría descifrar
-          type: web
-          name: radar-creativos
-          envVarKey: CLAVE_TOKENS
+      - key: HORA_RONDA
+        value: "3"           # hora (del servidor) a la que el agente hace su ronda
