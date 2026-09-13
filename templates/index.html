@@ -331,33 +331,20 @@ function pinta(){
 /* ---------- copiar ---------- */
 function copiar(t,btn){navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;
   btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=o,1400)})}
-function copiarTodo(){
-  const d=DATA; if(!d) return; const P=plan(d);
-  const L=f=>(d.linaje||[]).find(x=>x.familia===f);
-  const bloque=(c,n)=>{const l=L(c.familia), g=c.diag||{};
-    return `  · ${c.etiqueta} — nota ${c.score}, ROAS ${c.roas}, hook ${c.hook_rate}%, ${eur(c.spend)}\n`+
-           `    POR QUÉ: ${g.resumen||''}\n`+
-           (g.replicar&&g.replicar.length?`    CONSERVAR: ${g.replicar.join('; ')}\n`:'')+
-           (g.arreglar&&g.arreglar.length?`    CORREGIR: ${g.arreglar.join('; ')}\n`:'')+
-           `    HACER: ${n} variantes. Nombre de la siguiente: ${l?l.siguiente_nombre:c.ad_name+'_V2'}`};
-  let t=`ESTADO DE MIS CREATIVOS (${d.rango}) — ${eur(d.gasto_total)} invertidos · ${d.ventas} ventas · ${d.n_creativos} creativos\n`;
-  t+=`\nOBJETIVO DE LA SEMANA: ${P.total} creativos\n`;
-  t+=`\n🟢 GANADORES — clonar en variantes\n`+(d.ganadores.length?d.ganadores.map(c=>bloque(c,3)).join('\n')+'\n':'  (ninguno todavía)\n');
-  if(d.promesas.length) t+=`\n🟡 PROMESAS — enganchan, aún no cierran\n`+d.promesas.map(c=>bloque(c,2)).join('\n')+'\n';
-  if(d.matar.length) t+=`\n🔴 MATAR — no repetir esta idea\n`+d.matar.map(c=>
-      `  · ${c.etiqueta} — ${eur(c.spend)} sin ventas. ${(c.diag||{}).resumen||''}`).join('\n')+'\n';
-  if((d.huecos||[]).length) t+=`\n🧪 SIN PROBAR — explorar sobre lo que funciona\n`+
-      d.huecos.slice(0,6).map(x=>`  · ${x.angulo} × ${x.formato} — ${x.razon}`).join('\n')+'\n';
-  const lin=(d.linaje||[]).filter(l=>l.generaciones.length>1);
-  if(lin.length) t+=`\n📈 APRENDIZAJE\n`+lin.map(l=>
-      `  · ${l.etiqueta}: ${l.generaciones.map(g=>'V'+g.v+'('+g.score+')').join(' → ')} — ${l.aprendizaje}`).join('\n')+'\n';
-  t+=`\nINSTRUCCIÓN: prepárame los creativos de arriba respetando el POR QUÉ de cada uno `+
-     `(conserva lo que funciona, corrige lo que se rompe). En las variantes cambia gancho, `+
-     `avatar y escenario, nunca el guion que ya gana. Nombra cada creativo con su número de `+
-     `variante exacto. Antes de escribir, dime qué vas a hacer para que lo revise.`;
-  navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('btnCopiar');
-    const o=b.textContent; b.textContent='✓ Copiado — pégalo en tu chat';
-    setTimeout(()=>b.textContent=o,2400)});
+async function copiarTodo(){
+  const c=cfg(); if(!c) return;
+  const b=document.getElementById('btnCopiar'), o=b.textContent;
+  b.textContent='Preparando…';
+  try{
+    // El informe lo escribe el servidor: así el botón y la skill del chat
+    // dicen exactamente lo mismo.
+    const r=await fetch('/api/briefing',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
+    const t=await r.text();
+    await navigator.clipboard.writeText(t);
+    b.textContent='✓ Copiado — pégalo en tu chat';
+  }catch(e){ b.textContent='No se pudo copiar'; }
+  setTimeout(()=>b.textContent=o,2400);
 }
 
 /* ---------- guía ---------- */

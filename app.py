@@ -78,5 +78,30 @@ def api_radar():
     return out, 200
 
 
+@app.post("/api/briefing")
+def api_briefing():
+    """El mismo informe, ya escrito para que lo lea una IA.
+
+    Lo piden dos sitios: el botón de la web y la skill del chat de creativos.
+    Al vivir aquí, los dos dicen exactamente lo mismo — que es lo que hace que
+    el loop se retroalimente sin contradicciones."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    rango = d.get("rango") or "last_7d"
+    if not token or not cuenta:
+        return "Falta el token o el ID de la cuenta.", 400, {"Content-Type": "text/plain; charset=utf-8"}
+    try:
+        filas = meta_api.get_insights(token, cuenta, "ad", rango)
+    except Exception as e:
+        return f"No se pudo leer Meta: {e}", 200, {"Content-Type": "text/plain; charset=utf-8"}
+    if not filas:
+        return ("Meta no ha devuelto anuncios en ese periodo.", 200,
+                {"Content-Type": "text/plain; charset=utf-8"})
+    an = radar.analiza(filas)
+    an["rango"] = rango
+    return (radar.texto_para_ia(an), 200, {"Content-Type": "text/plain; charset=utf-8"})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=int(os.getenv("PORT", 5001)))

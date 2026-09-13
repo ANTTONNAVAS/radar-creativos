@@ -334,3 +334,80 @@ def diagnostico(r):
 
     return {"resumen": resumen, "pasos": pasos,
             "replicar": replicar, "arreglar": arreglar}
+
+
+def plan_semanal(d):
+    """Cuántos creativos tocan esta semana, repartidos. El objetivo del método
+    son 25-30 a la semana: si con lo que hay no se llega, se completa con
+    ángulos nuevos."""
+    g, p = len(d["ganadores"]), len(d["promesas"])
+    hu = min(len(d.get("huecos") or []), 6)
+    vg, vp, vt = g * 3, p * 2, hu
+    total = vg + vp + vt
+    extra = max(0, 25 - total)
+    return {"ganadores": g, "promesas": p, "var_ganadores": vg, "var_promesas": vp,
+            "tests": vt, "extra": extra, "total": total + extra}
+
+
+def texto_para_ia(d):
+    """El informe en texto plano, escrito PARA que una IA sepa qué producir.
+
+    Es la pieza que cierra el loop: lleva los números, el PORQUÉ de cada
+    creativo, qué conservar, qué corregir y con qué nombre exacto va cada
+    variante. Lo usan igual el botón de la web y la skill del chat, para que
+    los dos digan exactamente lo mismo."""
+    P = plan_semanal(d)
+    L = {l["familia"]: l for l in (d.get("linaje") or [])}
+    out = [f"ESTADO DE MIS CREATIVOS ({d.get('rango','')}) — "
+           f"{d['gasto_total']:.2f}€ invertidos · {d['ventas']} ventas · "
+           f"{d['n_creativos']} creativos analizados",
+           f"\nOBJETIVO DE ESTA SEMANA: {P['total']} creativos "
+           f"({P['var_ganadores']} variantes de ganadores + {P['var_promesas']} de promesas + "
+           f"{P['tests']} tests nuevos"
+           + (f" + {P['extra']} de ángulos nuevos)" if P["extra"] else ")")]
+
+    def bloque(c, n):
+        g = c.get("diag") or {}
+        l = L.get(c["familia"])
+        t = [f"  · {c['etiqueta']} — nota {c['score']}, ROAS {c['roas']}, "
+             f"hook {c['hook_rate']}%, {c['spend']:.2f}€, {c['purchases']} ventas",
+             f"    POR QUÉ: {g.get('resumen','')}"]
+        if g.get("replicar"):
+            t.append(f"    CONSERVAR: {'; '.join(g['replicar'])}")
+        if g.get("arreglar"):
+            t.append(f"    CORREGIR: {'; '.join(g['arreglar'])}")
+        t.append(f"    HACER: {n} variantes · nombre de la siguiente: "
+                 f"{l['siguiente_nombre'] if l else c['ad_name'] + '_V2'}")
+        return "\n".join(t)
+
+    out.append("\n🟢 GANADORES — clonar en variantes")
+    out.append("\n".join(bloque(c, 3) for c in d["ganadores"]) if d["ganadores"]
+               else "  (ninguno todavía: aún no hay creativos con datos suficientes para escalar)")
+    if d["promesas"]:
+        out.append("\n🟡 PROMESAS — enganchan pero aún no cierran")
+        out.append("\n".join(bloque(c, 2) for c in d["promesas"]))
+    if d["matar"]:
+        out.append("\n🔴 MATAR — no repetir esta idea")
+        out.append("\n".join(f"  · {c['etiqueta']} — {c['spend']:.2f}€ sin ventas. "
+                             f"{(c.get('diag') or {}).get('resumen','')}" for c in d["matar"]))
+    if d.get("huecos"):
+        out.append("\n🧪 SIN PROBAR — explorar SOBRE lo que ya funciona")
+        out.append("\n".join(f"  · {h['angulo']} × {h['formato']} — {h['razon']}"
+                             for h in d["huecos"][:6]))
+    lin = [l for l in (d.get("linaje") or []) if len(l["generaciones"]) > 1]
+    if lin:
+        out.append("\n📈 LO QUE YA HEMOS APRENDIDO")
+        out.append("\n".join(
+            f"  · {l['etiqueta']}: "
+            + " → ".join(f"V{g['v']}({g['score']})" for g in l["generaciones"])
+            + f" — {l['aprendizaje']}" for l in lin))
+    avisos = (d.get("mal_nombrados") or []) + (d.get("sin_variante") or [])
+    if avisos:
+        out.append(f"\n⚠️ AVISO: {len(avisos)} anuncios mal nombrados o sin número de "
+                   "variante. No entran en el análisis hasta que se corrijan.")
+    out.append(
+        "\nINSTRUCCIÓN: prepara los creativos de arriba respetando el POR QUÉ de cada uno "
+        "(conserva lo que funciona, corrige lo que se rompe). En las variantes cambia gancho, "
+        "avatar y escenario, NUNCA el guion que ya gana. Nombra cada creativo con su número de "
+        "variante exacto. Dime primero qué vas a hacer para que lo revise antes de escribirlo.")
+    return "\n".join(out)
