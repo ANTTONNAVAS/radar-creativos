@@ -151,8 +151,8 @@
   /* ---------- embudo: del anuncio a la venta ---------- */
   .embudo{display:flex;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
           border-radius:14px;overflow:hidden}
-  .embudo .paso{flex:1;min-width:132px;padding:17px 14px;text-align:center;border-right:1px solid var(--line)}
-  .embudo .paso:last-child{border-right:none}
+  .embudo .celda{flex:1;min-width:132px;padding:17px 14px;text-align:center;border-right:1px solid var(--line)}
+  .embudo .celda:last-child{border-right:none}
   .embudo .n{font-size:23px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
   .embudo .l{font-size:11px;color:var(--muted);margin-top:3px}
   .embudo .c{display:inline-block;margin-top:8px;font-size:11px;font-weight:600;
@@ -627,7 +627,7 @@ function vistaEmbudo(e){
   if(!e) return '';
   let h='<h2 class="v">📉 Del anuncio a la venta</h2>'+
         '<p class="h2sub">Cuánta gente llega a cada paso y lo que cuesta cada salto.</p>'+
-        '<div class="embudo">'+e.pasos.map(p=>`<div class="paso">
+        '<div class="embudo">'+e.pasos.map(p=>`<div class="celda">
           <div class="n">${num(p.valor)}</div><div class="l">${esc(p.nombre)}</div>
           <span class="c">${esc(p.coste_nombre)} ${eur(p.coste)}</span></div>`).join('')+'</div>';
   if(e.fuga) h+=`<div class="fuga">🩹 <b>Donde más gente se cae:</b> ${esc(e.fuga.salto)} —
@@ -710,7 +710,7 @@ function vistaTabla(){
     const clic=hijo?`onclick="entrar('${t.nivel}','${f.id}','${esc(f.name).replace(/'/g,'&#39;')}')" style="cursor:pointer"`:'';
     return `<tr ${clic}>
       <td><span class="pill ${act?'p-g':'p-m'}" style="font-size:10px;padding:2px 8px">${act?'Activa':'Pausada'}</span></td>
-      <td style="max-width:230px;white-space:normal">${esc(f.name)}${hijo?' <span style="color:var(--v)">›</span>':''}</td>
+      <td style="max-width:230px;white-space:normal;overflow-wrap:anywhere">${esc(f.name)}${hijo?' <span style="color:var(--v)">›</span>':''}</td>
       ${COLS.map(c=>`<td>${celda(f[c[1]], c[2])}</td>`).join('')}</tr>`;}).join('');
   return h+'</tbody></table></div>';
 }
