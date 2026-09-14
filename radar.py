@@ -623,6 +623,103 @@ ESTRUCTURA = [
 ]
 
 
+def _referencia(c):
+    """Los números del creativo del que sale la variante.
+
+    Van dentro del brief porque quien escribe el guion tiene que saber de qué
+    tamaño es lo que está clonando: no se toca igual un ganador de 400 € que
+    una promesa de 30 €."""
+    return {"nombre": c.get("ad_name", ""), "nota": c.get("score", 0),
+            "roas": c.get("roas", 0), "cpa": c.get("cpa", 0),
+            "hook": c.get("hook_rate", 0), "gasto": c.get("spend", 0),
+            "ventas": c.get("purchases", 0), "facturado": c.get("revenue", 0),
+            "estado": c.get("estado", "")}
+
+
+def _historia(l):
+    """Qué ha pasado con esta familia hasta hoy: V1 → V2 → V3 y qué se aprendió.
+
+    Sin esto la IA repite un cambio que ya se probó y no funcionó."""
+    if not l or len(l.get("generaciones") or []) < 2:
+        return None
+    return {"cadena": " → ".join(f"V{g['v']} (nota {g['score']})"
+                                 for g in l["generaciones"]),
+            "aprendizaje": l.get("aprendizaje", ""),
+            "mejor_v": l.get("mejor_v"), "madre_v": l.get("madre_v")}
+
+
+# Una sola cosa cambia en cada copia: si cambias tres a la vez y mejora, no
+# sabes cuál de las tres fue. Este es el orden en que se prueban.
+_EJES = [
+    ("el GANCHO", "mismo dolor, otras primeras palabras y otro plano de apertura"),
+    ("el AVATAR", "otra persona: distinta edad, distinto acento, distinta energía"),
+    ("el ESCENARIO", "otro sitio y otra luz; el guion no se toca"),
+    ("el DOLOR concreto", "otra situación del mismo ángulo (mismo problema, otro momento del día)"),
+    ("el RITMO", "misma historia contada más rápido: entra antes al problema"),
+]
+
+
+def _plan_copias(nombre_base, cuantas, rompe, angulo=""):
+    """Qué cambia exactamente en cada uno de los N vídeos, con su nombre.
+
+    Es la diferencia entre "haz 3 variantes" y un encargo que se puede
+    producir: cada copia tiene nombre propio y un único cambio que medir."""
+    nombres = nombres_de_la_tanda(nombre_base, cuantas)
+    ejes = list(_EJES)
+    if "Gancho" in (rompe or []):
+        # Si el gancho es lo que falla, no vale retocarlo: se cambia entero
+        # y se prueban ganchos distintos entre sí en las primeras copias.
+        ejes[0] = ("el GANCHO ENTERO", "otro dolor de entrada y otro plano inicial: "
+                                       "es la fase que está rompiendo")
+        ejes.insert(1, ("el GANCHO, segunda idea", "un ángulo de entrada distinto al de la copia 1"))
+    plan = []
+    for i, n in enumerate(nombres):
+        que, como = ejes[i % len(ejes)]
+        plan.append({"n": i + 1, "nombre": n, "cambia": que, "como": como,
+                     "resto": "Todo lo demás se queda igual que en la referencia."})
+    return plan
+
+
+def _criterio_exito(c):
+    """Cuándo se considera que la variante ha ganado.
+
+    El listón sale de las mismas referencias con las que se diagnostica, más
+    el creativo del que parte: una variante que no supera a su madre no es
+    una mejora aunque los números sean decentes."""
+    return [f"Hook rate por encima del {REF['hook']:.0f}% "
+            f"(la referencia va al {c.get('hook_rate', 0)}%).",
+            f"CTR único por encima del {REF['ctr']:.2f}%.",
+            f"ROAS por encima de {ROAS_OBJETIVO} con al menos "
+            f"{GASTO_APRENDIZAJE:.0f}€ gastados: antes de eso no se decide nada.",
+            f"Y sobre todo: superar la nota {c.get('score', 0)} de "
+            f"{c.get('etiqueta', 'la referencia')}. Si no la supera, la madre sigue siendo la madre."]
+
+
+def _produccion(formato, temperatura):
+    """Las condiciones técnicas de entrega, iguales para todos los vídeos."""
+    base = ["Vertical 9:16, 1080×1920, mínimo 30 fps.",
+            "Duración 30-35 s. Si el gancho no está cerrado en el segundo 3, se rehace.",
+            "Subtítulos quemados y legibles en móvil: la mayoría lo ve sin sonido.",
+            "Nada de texto ni logo en los 3 primeros segundos: tapan el gancho.",
+            "Audio limpio y voz por delante de la música.",
+            "Sin promesas médicas ni antes/después prohibidos: lo tumba la revisión de Meta."]
+    porf = {
+        "TESTIMONIO": "Persona real hablando a cámara, plano medio, casa normal. Nada de estudio.",
+        "UGC": "Grabado a pulso con móvil. Que parezca de alguien, no de una marca.",
+        "DEMO": "El producto en uso y en primer plano desde el segundo 4. Se ve cómo funciona, no se cuenta.",
+        "UNBOXING": "Manos, caja y producto. Ritmo rápido y un momento de sorpresa.",
+        "PODCAST": "Dos voces, micro visible, corte cada 4-5 s para que no caiga el ritmo.",
+    }
+    extra = porf.get((formato or "").upper())
+    if extra:
+        base.insert(1, extra)
+    if temperatura == "Frío":
+        base.append("Público frío: primero el problema, la marca aparece tarde.")
+    elif temperatura == "Caliente":
+        base.append("Público caliente: ya te conoce. Ve directo a la oferta y al motivo para comprar hoy.")
+    return base
+
+
 def brief(c, linaje_de_familia=None):
     """El brief de la siguiente variante de un creativo que funciona.
 
@@ -645,9 +742,11 @@ def brief(c, linaje_de_familia=None):
         cambiar[0] = ("el GANCHO ENTERO: es lo que está fallando. Prueba otro dolor "
                       "y otro plano inicial")
 
+    cuantas = 3 if c["estado"] == "ganador" else 2
+    nombre_var = l.get("siguiente_nombre") or (c["ad_name"] + "_V2")
     return {
         "titulo": f"Brief · {c['etiqueta']}",
-        "nombre_variante": l.get("siguiente_nombre") or (c["ad_name"] + "_V2"),
+        "nombre_variante": nombre_var,
         "base": (f"Partes de {c['etiqueta']}: {d.get('resumen','')}"),
         "gana_en": gana, "rompe_en": rompe,
         "conservar": conservar,
@@ -656,7 +755,15 @@ def brief(c, linaje_de_familia=None):
         "estructura": [{"t": t, "b": b, "q": q} for t, b, q in ESTRUCTURA],
         "angulo": c.get("angulo", ""), "formato": c.get("formato", ""),
         "temperatura": TEMPERATURA.get(c.get("embudo", ""), ("", "sin clasificar"))[1],
-        "cuantas": 3 if c["estado"] == "ganador" else 2,
+        "cuantas": cuantas,
+        # --- Lo que hace que el brief se pueda producir sin preguntar nada ---
+        "referencia": _referencia(c),
+        "fases": list(d.get("pasos") or []),
+        "historia": _historia(l),
+        "plan_copias": _plan_copias(nombre_var, cuantas, rompe, c.get("angulo", "")),
+        "criterio_exito": _criterio_exito(c),
+        "produccion": _produccion(c.get("formato", ""),
+                                  TEMPERATURA.get(c.get("embudo", ""), ("", ""))[1]),
     }
 
 
@@ -899,6 +1006,24 @@ def brief_nuevo(angulo, formato, referencia, motivo=""):
                                        ("", "Frío"))[1],
         "cuantas": 1,
         "aviso": "Sustituye CONCEPTO por el nombre de la idea antes de subirlo.",
+        # Un test también necesita saber de dónde sale y cuándo se da por bueno.
+        "referencia": _referencia(referencia) if referencia else None,
+        "fases": [], "historia": None,
+        "hipotesis": (f"Si el ángulo «{angulo}» funciona hablado a cámara, debería seguir "
+                      f"funcionando en {formato}, que llega a gente que no para con "
+                      "talking-head." if referencia else
+                      f"Comprobar si {angulo} × {formato} tiene recorrido en esta cuenta."),
+        "plan_copias": [{"n": 1, "nombre": nombre,
+                         "cambia": "TODO", "como": f"Guion nuevo escrito para {formato}. "
+                                                   f"El ángulo «{angulo}» es lo único que se hereda.",
+                         "resto": "Es un test: no hay nada que conservar del original."}],
+        "criterio_exito": [
+            f"Con {GASTO_APRENDIZAJE:.0f}€ gastados ya se puede mirar; antes no.",
+            f"Hook por encima del {REF['hook']:.0f}% = la idea engancha, aunque no venda todavía.",
+            f"ROAS por encima de {ROAS_BREAKEVEN} = sobrevive y pasa a tener variantes.",
+            "Si no llega, se mata y se anota: ese cruce ya está descartado."],
+        "produccion": _produccion(formato, TEMPERATURA.get(
+            (referencia or {}).get("embudo", ""), ("", "Frío"))[1]),
     }
 
 
@@ -924,16 +1049,22 @@ def encargo_semanal(an, objetivo=OBJETIVO_SEMANA):
             por_promesa += 1
 
     briefs = []
+
+    def _mete(c, cuantas):
+        # El brief nace con su número de variantes por defecto; aquí se ajusta
+        # al del encargo y se REHACE el plan de copias, para que los vídeos
+        # listados uno a uno cuadren siempre con el total que se pide.
+        b = brief(c, lin.get(c["familia"]))
+        b["clase"] = "variante"
+        b["cuantas"] = cuantas
+        b["plan_copias"] = _plan_copias(b["nombre_variante"], cuantas,
+                                        b.get("rompe_en") or [], c.get("angulo", ""))
+        briefs.append(b)
+
     for c in ganadores:
-        b = brief(c, lin.get(c["familia"]))
-        b["clase"] = "variante"
-        b["cuantas"] = por_ganador
-        briefs.append(b)
+        _mete(c, por_ganador)
     for c in promesas:
-        b = brief(c, lin.get(c["familia"]))
-        b["clase"] = "variante"
-        b["cuantas"] = por_promesa
-        briefs.append(b)
+        _mete(c, por_promesa)
 
     # Para cada cruce sin probar, buscamos de dónde sale el ingrediente que gana.
     ref_por_angulo = {c["angulo"]: c for c in (ganadores + promesas) if c.get("angulo")}
@@ -956,3 +1087,195 @@ def encargo_semanal(an, objetivo=OBJETIVO_SEMANA):
                         "research: ángulos que todavía no hayas puesto en marcha."
                         if faltan else None),
     }
+
+
+# ---------------------------------------------------------------------------
+# 📥 EL BRIEF DESCARGABLE — el archivo que se le da al chat de creativos.
+#
+# El botón de copiar sirve para una consulta rápida, pero para producir la
+# semana entera hace falta un documento: una ficha por CADA pieza, con sus
+# números, su diagnóstico, el nombre exacto de cada vídeo y qué cambia en
+# cada copia. Eso es lo que baja a Descargas y lo que lee la IA para escribir
+# los guiones.
+# ---------------------------------------------------------------------------
+def nombres_de_la_tanda(nombre_base, cuantas):
+    """Los nombres exactos de las N copias: V4, V5, V6…
+
+    Sin esto, la persona sube tres vídeos llamados igual y el radar deja de
+    poder comparar variantes. El número de variante es innegociable."""
+    import re as _re
+    m = _re.search(r"(?i)(?<![A-Z0-9])V(\d+)(?![A-Z0-9])", nombre_base or "")
+    if not m:
+        return [f"{nombre_base}_V{i + 1}" for i in range(max(1, cuantas))]
+    n = int(m.group(1))
+    a, b = nombre_base[:m.start()], nombre_base[m.end():]
+    return [f"{a}V{n + i}{b}" for i in range(max(1, cuantas))]
+
+
+def _ficha_brief(b, i, total):
+    """Una pieza del encargo, escrita para que se pueda producir sin preguntar."""
+    clase = ("VARIANTE de algo que ya funciona" if b.get("clase") == "variante"
+             else "TEST nuevo (cruce sin probar)")
+    t = [f"\n\n### Pieza {i} de {total} · {b.get('titulo', '')}",
+         "",
+         f"| | |", "|---|---|",
+         f"| **Qué es** | {clase} |",
+         f"| **Cuántos vídeos** | {b.get('cuantas', 1)} |",
+         f"| **Ángulo** | {b.get('angulo') or '—'} |",
+         f"| **Formato** | {b.get('formato') or '—'} |",
+         f"| **Temperatura del público** | {b.get('temperatura') or '—'} |"]
+
+    ref = b.get("referencia")
+    if ref:
+        t += [f"| **Sale de** | `{ref.get('nombre', '')}` |",
+              f"| **Números de la referencia** | nota {ref.get('nota', 0)} · "
+              f"ROAS {ref.get('roas', 0)} · hook {ref.get('hook', 0)}% · "
+              f"CPA {ref.get('cpa', 0)}€ · {ref.get('gasto', 0)}€ gastados · "
+              f"{ref.get('ventas', 0)} ventas |"]
+    t.append("")
+
+    if b.get("base"):
+        t += ["**Por qué se produce esta pieza**", "", b["base"], ""]
+    if b.get("hipotesis"):
+        t += ["**Qué queremos comprobar**", "", b["hipotesis"], ""]
+
+    # El diagnóstico fase a fase: el porqué con el dato al lado.
+    if b.get("fases"):
+        t += ["**Diagnóstico del creativo original, fase a fase**", "",
+              "| Fase | | Qué dice el dato | Número |", "|---|---|---|---|"]
+        t += [f"| {f['fase']} | {'✅' if f['ok'] else '⚠️'} | {f['texto']} | {f['dato']} |"
+              for f in b["fases"]]
+        t.append("")
+
+    if b.get("historia"):
+        h = b["historia"]
+        t += ["**Historia de esta familia**", "",
+              f"- Recorrido: {h['cadena']}",
+              f"- Lo aprendido: {h.get('aprendizaje', '')}",
+              "- No repitas un cambio que ya se probó aquí.", ""]
+
+    if b.get("conservar"):
+        t += ["**🔒 CONSERVAR — esto no se toca**", ""]
+        t += [f"- {x}" for x in b["conservar"]]
+        t.append("")
+    if b.get("corregir"):
+        t += ["**🔧 CORREGIR — esto es lo que está fallando**", ""]
+        t += [f"- {x}" for x in b["corregir"]]
+        t.append("")
+
+    # El plan copia a copia: nombre exacto + el ÚNICO cambio de cada vídeo.
+    plan = b.get("plan_copias") or []
+    if plan:
+        t += ["**🎬 Los vídeos, uno a uno (nombre exacto y qué cambia en cada uno)**", ""]
+        for p in plan:
+            t += [f"**Vídeo {p['n']} — `{p['nombre']}`**",
+                  f"- Cambia: **{p['cambia']}** — {p['como']}",
+                  f"- {p['resto']}", ""]
+
+    t += ["**⏱️ Estructura del vídeo**", "",
+          "| Tiempo | Bloque | Qué tiene que pasar |", "|---|---|---|"]
+    t += [f"| {e['t']} | **{e['b']}** | {e['q']} |" for e in (b.get("estructura") or [])]
+    t.append("")
+
+    if b.get("produccion"):
+        t += ["**🎥 Cómo se entrega**", ""]
+        t += [f"- {x}" for x in b["produccion"]]
+        t.append("")
+    if b.get("criterio_exito"):
+        t += ["**🎯 Cuándo se considera que ha ganado**", ""]
+        t += [f"- {x}" for x in b["criterio_exito"]]
+        t.append("")
+    if b.get("aviso"):
+        t.append(f"> ⚠️ {b['aviso']}")
+    return "\n".join(t)
+
+
+def texto_brief_semanal(d, enc=None, fecha=""):
+    """El documento completo de la semana, listo para descargar.
+
+    Lleva primero cómo va la cuenta (para que la IA entienda el porqué) y
+    después una ficha por cada pieza que hay que producir. Es el mismo
+    análisis que ve la persona en pantalla: aquí no se inventa nada."""
+    enc = enc or encargo_semanal(d)
+    briefs = enc.get("briefs") or []
+    total = len(briefs)
+    piezas = enc.get("piezas", 0)
+    estado = texto_para_ia(d).split("\nINSTRUCCIÓN:")[0].strip()
+
+    out = [f"# BRIEF DE CREATIVOS — semana del {fecha}",
+           "",
+           "> Archivo generado por el Radar de Creativos a partir de los datos reales de",
+           "> la cuenta de Meta. Dáselo a tu chat de creativos (arrástralo o dile «lee el",
+           "> brief que tengo en Descargas») y pídele los guiones.",
+           "",
+           "## 0. INSTRUCCIONES PARA LA IA QUE LEA ESTE ARCHIVO",
+           "",
+           "1. Lee el apartado 1 para entender **por qué** funciona cada cosa en esta cuenta.",
+           f"2. Escribe el **guion completo** de cada uno de los {piezas} vídeos del apartado 2: "
+           "gancho palabra por palabra, texto de cada bloque, indicación de plano y cierre. "
+           "Un guion por vídeo, no uno por brief.",
+           "3. Usa el **nombre exacto** que lleva cada vídeo, tal cual aparece. El número de "
+           "variante (V1, V2, V3…) es obligatorio: sin él el radar no puede comparar nada la "
+           "semana que viene.",
+           "4. En las variantes **no cambies el guion que ya gana**: cambia solo lo que dice "
+           "cada vídeo en «qué cambia». Una cosa por vídeo, para saber qué fue lo que movió.",
+           "5. Respeta lo marcado como CONSERVAR y arregla lo marcado como CORREGIR.",
+           "6. Antes de escribir nada, enseña la **lista de lo que vas a hacer** para que la "
+           "persona la revise. Ella manda: si quiere probar algo que los números no respaldan, "
+           "se hace igual y se mide.",
+           "",
+           "---",
+           "",
+           "## 1. CÓMO VA LA CUENTA AHORA MISMO",
+           "",
+           "```",
+           estado,
+           "```",
+           "",
+           "---",
+           "",
+           f"## 2. EL ENCARGO DE LA SEMANA — {piezas} vídeos en {total} briefs",
+           "",
+           f"- Variantes de ganadores: **{enc.get('variantes_ganadores', 0)}** "
+           f"({enc.get('por_ganador', 0)} por creativo)",
+           f"- Variantes de promesas: **{enc.get('variantes_promesas', 0)}** "
+           f"({enc.get('por_promesa', 0)} por creativo)",
+           f"- Tests nuevos (cruces sin probar): **{enc.get('tests', 0)}**",
+           f"- Objetivo de la semana: **{enc.get('objetivo', 0)}**"]
+    if enc.get("nota_faltan"):
+        out.append(f"- ⚠️ {enc['nota_faltan']}")
+
+    # Índice, para no perderse cuando la semana trae 12 briefs.
+    out += ["", "**Índice de piezas**", ""]
+    for i, b in enumerate(briefs, 1):
+        out.append(f"{i}. {b.get('titulo', '')} — {b.get('cuantas', 1)} vídeo(s) · "
+                   f"{b.get('angulo') or '—'} × {b.get('formato') or '—'}")
+
+    for i, b in enumerate(briefs, 1):
+        out.append(_ficha_brief(b, i, total))
+
+    out += ["",
+            "---",
+            "",
+            "## 3. REGLAS QUE NO SE SALTAN",
+            "",
+            "- **Número de variante siempre.** `NIVEL_EMBUDO_ANGULO_FORMATO_V3_CONCEPTO`: si dos "
+            "vídeos se llaman igual, el análisis de la semana que viene no vale nada.",
+            "- **Explorar SOBRE lo que funciona.** Los tests nuevos parten de un ángulo o un "
+            "formato ya validado, no de una idea suelta.",
+            "- **Una cosa por vídeo.** Si cambias gancho, avatar y escenario a la vez y mejora, "
+            "no sabrás cuál de los tres fue.",
+            "- **Nada se decide antes de tiempo.** Por debajo del gasto de aprendizaje, los "
+            "números aún no significan nada.",
+            "- **Revisión humana antes de producir.** La IA propone; la persona decide.",
+            "",
+            "---",
+            "",
+            "## 4. QUÉ HACER CUANDO ESTÉN LOS VÍDEOS",
+            "",
+            "1. Súbelos con el nombre exacto de este brief.",
+            "2. Déjalos correr hasta el gasto de aprendizaje sin tocarlos.",
+            "3. Vuelve al Radar: te dirá cuál superó a su madre y cuál se mata.",
+            "4. Descarga el brief de la semana siguiente. Cada vuelta parte de más información.",
+            ""]
+    return "\n".join(out)

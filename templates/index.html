@@ -296,6 +296,7 @@
       <option value="last_14d">Últimos 14 días</option>
       <option value="last_30d">Últimos 30 días</option>
     </select>
+    <button class="bigcopy" id="btnBrief" onclick="descargarBrief()">📥 Generar brief de la semana</button>
     <button class="bigcopy" id="btnCopiar" onclick="copiarTodo()">📋 Copiar para el chat de creativos</button>
   </div>
   <div id="salida"><div class="load">Leyendo tu cuenta…</div></div>
@@ -332,6 +333,7 @@ function ver(v){
   VISTA=v;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.getElementById('btnCopiar').style.display = v==='agente'?'':'none';
+  document.getElementById('btnBrief').style.display = v==='agente'?'':'none';
   CONJ=null; CONJ_FICHA=null;
   if(v==='tabla'){ if(!TABLA) { cargarTabla('campaign',null,''); return; } }
   if(v==='bib'){ CREATIVO=null; if(!BIB){ cargarBiblioteca(); return; } }
@@ -1011,6 +1013,28 @@ async function copiarTodo(){
   setTimeout(()=>b.textContent=o,2400);
 }
 
+/* ---------- descargar el brief de la semana ----------
+   Baja a Descargas un .md con una ficha por cada vídeo que toca producir.
+   Se le pasa ese archivo al chat de creativos y ya escribe los guiones. */
+async function descargarBrief(){
+  const c=cfg(); if(!c) return;
+  const b=document.getElementById('btnBrief'), o=b.textContent;
+  b.textContent='Preparando el brief…';
+  try{
+    const r=await fetch('/api/brief',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,codigo:c.codigo||'',rango:document.getElementById('selRango').value})});
+    const t=await r.text();
+    const hoy=new Date().toISOString().slice(0,10);
+    const url=URL.createObjectURL(new Blob([t],{type:'text/markdown;charset=utf-8'}));
+    const a=document.createElement('a');
+    a.href=url; a.download='BRIEF_CREATIVOS_'+hoy+'.md';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    b.textContent='✓ Está en tu carpeta Descargas';
+  }catch(e){ b.textContent='No se pudo generar'; }
+  setTimeout(()=>b.textContent=o,3200);
+}
+
 /* ---------- guía ---------- */
 function guiaHTML(){return `
 <details class="guia">
@@ -1047,9 +1071,19 @@ function guiaHTML(){return `
   un problema de ideas.</p>
 
   <h4>4. Cómo se conecta con la IA</h4>
-  <p>Pulsa <strong>📋 Copiar para el chat de creativos</strong> y pégalo en tu chat. La IA ya sabrá
-  tus números, tus ganadores, <strong>por qué</strong> funcionan y con qué nombre va cada variante.
-  Tú revisas su propuesta antes de producir: manda siempre tu criterio.</p>
+  <p>Tienes dos botones, y hacen cosas distintas:</p>
+  <ul>
+    <li><strong>📋 Copiar para el chat de creativos</strong> — para una consulta rápida. Pega el
+        informe en tu chat y pregúntale lo que quieras.</li>
+    <li><strong>📥 Generar brief de la semana</strong> — el encargo entero. Baja a tu carpeta
+        <strong>Descargas</strong> un archivo <code>BRIEF_CREATIVOS_fecha.md</code> con una ficha
+        por CADA vídeo que toca producir: nombre exacto con su número de variante, los números del
+        creativo del que sale, el diagnóstico fase a fase, qué conservar, qué corregir, qué cambia
+        en cada copia, la estructura por segundos y cuándo se considera que ha ganado.</li>
+  </ul>
+  <p>Arrastra ese archivo a tu chat de creativos (o dile «lee el brief que tengo en Descargas») y
+  te escribe los guiones de la semana. Tú revisas su propuesta antes de producir: manda siempre tu
+  criterio.</p>
 
   <h4>5. Cómo conseguir el token de Meta</h4>
   <ol>

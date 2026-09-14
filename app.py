@@ -290,6 +290,47 @@ def api_briefing():
     return (texto, 200, {"Content-Type": "text/plain; charset=utf-8"})
 
 
+@app.post("/api/brief")
+def api_brief():
+    """El BRIEF COMPLETO de la semana, como archivo para descargar.
+
+    El botón de copiar vale para una consulta rápida; esto es el encargo
+    entero —una ficha por cada vídeo, con su nombre exacto, sus números y qué
+    cambia en cada copia— para dárselo al chat de creativos y que escriba los
+    guiones sin tener que preguntar nada."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    rango = d.get("rango") or "last_7d"
+    if not token or not cuenta:
+        return "Falta el token o el ID de la cuenta.", 400, {"Content-Type": "text/plain; charset=utf-8"}
+    try:
+        filas = meta_api.get_insights(token, cuenta, "ad", rango)
+    except Exception as e:
+        return f"No se pudo leer Meta: {e}", 200, {"Content-Type": "text/plain; charset=utf-8"}
+    if not filas:
+        return ("Meta no ha devuelto anuncios en ese periodo, así que no hay de dónde "
+                "sacar el brief.", 200, {"Content-Type": "text/plain; charset=utf-8"})
+    an = radar.analiza(filas)
+    an["rango"] = rango
+    from datetime import datetime
+    hoy = datetime.now().strftime("%d/%m/%Y")
+    texto = radar.texto_brief_semanal(an, radar.encargo_semanal(an), hoy)
+    # Si el agente 24/7 está activo, lo que encontró anoche va dentro del brief.
+    codigo = (d.get("codigo") or "").strip()
+    if codigo:
+        nov = store.ultimas_novedades(codigo)
+        if nov["items"]:
+            lineas = "\n".join("- " + i["texto"] for i in nov["items"])
+            texto += (f"\n---\n\n## 5. LO QUE VIO EL AGENTE EN SU ÚLTIMA RONDA "
+                      f"({nov['dia']})\n\n{lineas}\n")
+    nombre = f"BRIEF_CREATIVOS_{datetime.now().strftime('%Y-%m-%d')}.md"
+    return (texto, 200, {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": f'attachment; filename="{nombre}"',
+    })
+
+
 # ---------------------------------------------------------------------------
 # 🌙 EL AGENTE 24/7 vive DENTRO de este servicio, en segundo plano.
 #
