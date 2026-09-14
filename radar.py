@@ -1354,12 +1354,15 @@ def texto_brief_semanal(d, enc=None, fecha=""):
            "",
            f"## 2. EL ENCARGO DE LA SEMANA — {piezas} vídeos en {total} briefs",
            "",
-           f"- Variantes de ganadores: **{enc.get('variantes_ganadores', 0)}** "
-           f"({enc.get('por_ganador', 0)} por creativo)",
-           f"- Variantes de promesas: **{enc.get('variantes_promesas', 0)}** "
-           f"({enc.get('por_promesa', 0)} por creativo)",
-           f"- Tests nuevos (cruces sin probar): **{enc.get('tests', 0)}**",
-           f"- Objetivo de la semana: **{enc.get('objetivo', 0)}**"]
+           f"- Objetivo de la semana: **{enc.get('objetivo', 0)}** vídeos"]
+    if enc.get("variantes_ganadores"):
+        out.append(f"- Variantes de ganadores: **{enc['variantes_ganadores']}** "
+                   f"({enc.get('por_ganador', 0)} por creativo)")
+    if enc.get("variantes_promesas"):
+        out.append(f"- Variantes de promesas: **{enc['variantes_promesas']}** "
+                   f"({enc.get('por_promesa', 0)} por creativo)")
+    if enc.get("tests"):
+        out.append(f"- Tests de cruces sin probar: **{enc['tests']}**")
     if enc.get("nota_arranque"):
         out.append(f"- ⚠️ {enc['nota_arranque']}")
     if enc.get("nota_faltan"):
