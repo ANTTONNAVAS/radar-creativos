@@ -370,7 +370,7 @@ def account_summary(rows):
     }
 
 
-def serie_diaria_ads(token, account, date_preset="last_14d", time_range=None):
+def serie_diaria_ads(token, account, date_preset="last_14d", time_range=None, nivel="ad"):
     """Día a día de CADA anuncio en una sola llamada (time_increment=1).
 
     Es lo que permite dibujar la evolución de un creativo sin esperar a
@@ -379,9 +379,11 @@ def serie_diaria_ads(token, account, date_preset="last_14d", time_range=None):
     """
     if not token or not account:
         raise MetaError("Falta el token o el ID de cuenta.")
+    idf = {"ad": "ad_id", "adset": "adset_id", "campaign": "campaign_id"}[nivel]
+    namef = {"ad": "ad_name", "adset": "adset_name", "campaign": "campaign_name"}[nivel]
     params = {
-        "level": "ad",
-        "fields": "ad_id,ad_name,spend,impressions,frequency,"
+        "level": nivel,
+        "fields": f"{idf},{namef},spend,impressions,frequency,"
                   "unique_inline_link_click_ctr,actions,action_values,purchase_roas",
         "time_increment": 1,
         "use_unified_attribution_setting": "true",
@@ -401,9 +403,9 @@ def serie_diaria_ads(token, account, date_preset="last_14d", time_range=None):
         ingresos = _pick(r.get("action_values", []), PURCHASE_PRI)
         roas_l = r.get("purchase_roas", [])
         roas = _f(roas_l[0].get("value")) if roas_l else (ingresos / spend if spend else 0.0)
-        out.setdefault(r.get("ad_id", ""), []).append({
+        out.setdefault(r.get(idf, ""), []).append({
             "dia": r.get("date_start", ""),
-            "nombre": r.get("ad_name", ""),
+            "nombre": r.get(namef, ""),
             "spend": round(spend, 2),
             "ventas": int(ventas),
             "ingresos": round(ingresos, 2),

@@ -506,3 +506,155 @@ def biblioteca(rows, series):
         "angulos": sorted({f["angulo"] for f in fichas if f["angulo"]}),
         "formatos": sorted({f["formato"] for f in fichas}),
     }
+
+
+# ---------------------------------------------------------------------------
+# DECISIONES POR CONJUNTO — escalar, cortar o dejar en paz.
+#
+# El creativo dice QUÉ producir; el conjunto dice DÓNDE va el dinero. Son dos
+# decisiones distintas y hay que tomarlas por separado.
+# ---------------------------------------------------------------------------
+ROAS_OBJETIVO = 2.5      # a partir de aquí merece la pena subir presupuesto
+ROAS_BREAKEVEN = 1.0     # por debajo se pierde dinero
+GASTO_APRENDIZAJE = 20.0  # con menos que esto no hay dato: no se toca
+
+
+def conjuntos(rows, series_por_id=None):
+    """Veredicto por conjunto de anuncios. Cada uno con su tendencia y la
+    acción concreta, para no tener que pensarlo dos veces."""
+    series_por_id = series_por_id or {}
+    out = []
+    for r in rows:
+        gasto = round(r.get("spend", 0.0), 2)
+        roas = round(r.get("roas", 0.0), 2)
+        ventas = int(r.get("purchases", 0))
+        tend = tendencia(series_por_id.get(r.get("id", ""), []))
+
+        if gasto < GASTO_APRENDIZAJE:
+            veredicto, clase = "APRENDIZAJE", "m"
+            accion = "Poco gasto, dale tiempo"
+        elif roas < ROAS_BREAKEVEN:
+            veredicto, clase = "CORTAR", "r"
+            accion = "Bajo breakeven"
+        elif roas >= ROAS_OBJETIVO and tend["dir"] != "baja":
+            veredicto, clase = "ESCALAR", "g"
+            accion = "Sube presupuesto 20%"
+        elif tend["dir"] == "baja":
+            veredicto, clase = "VIGILAR", "a"
+            accion = "Cae pero sigue rentable"
+        else:
+            veredicto, clase = "MANTENER", "b"
+            accion = "Rentable y estable"
+
+        out.append({
+            "id": r.get("id", ""), "nombre": r.get("name", ""),
+            "gasto": gasto, "roas": roas, "ventas": ventas,
+            "cpa": round(r.get("cpa", 0.0), 2),
+            "tendencia": tend, "veredicto": veredicto, "clase": clase,
+            "accion": accion,
+            "serie": [d.get("roas", 0) for d in series_por_id.get(r.get("id", ""), [])],
+        })
+    out.sort(key=lambda x: -x["gasto"])
+    libera = round(sum(c["gasto"] for c in out if c["veredicto"] == "CORTAR"), 2)
+    return {
+        "lista": out,
+        "cortar": sum(1 for c in out if c["veredicto"] == "CORTAR"),
+        "escalar": sum(1 for c in out if c["veredicto"] == "ESCALAR"),
+        "vigilar": sum(1 for c in out if c["veredicto"] == "VIGILAR"),
+        "sin_tocar": sum(1 for c in out if c["veredicto"] in ("MANTENER", "APRENDIZAJE")),
+        "libera": libera,
+    }
+
+
+# ---------------------------------------------------------------------------
+# EL EMBUDO, PASO A PASO — dónde se cae la gente entre el anuncio y la venta.
+# ---------------------------------------------------------------------------
+def embudo_visual(rows):
+    """Del anuncio a la venta: cuántos llegan a cada paso y a qué precio."""
+    t = lambda k: sum(r.get(k, 0) or 0 for r in rows)
+    gasto = sum(r.get("spend", 0.0) for r in rows)
+    imp, lpv = t("impressions"), t("lpv")
+    clics, atc = t("outbound_unique"), t("add_to_cart")
+    compras = t("purchases")
+    ing = sum(r.get("revenue", 0.0) for r in rows)
+    paso = lambda n, v, cn, cv: {"nombre": n, "valor": int(v), "coste_nombre": cn,
+                                 "coste": round(cv, 2)}
+    return {
+        "gasto": round(gasto, 2), "ingresos": round(ing, 2),
+        "roas": round(ing / gasto, 2) if gasto else 0,
+        "pasos": [
+            paso("Impresiones", imp, "CPM", (gasto / imp * 1000) if imp else 0),
+            paso("Clics", clics, "CPC", (gasto / clics) if clics else 0),
+            paso("Llegan a la web", lpv, "Coste/visita", (gasto / lpv) if lpv else 0),
+            paso("Añaden al carrito", atc, "Coste/carrito", (gasto / atc) if atc else 0),
+            paso("Compras", compras, "CPA", (gasto / compras) if compras else 0),
+        ],
+        # Dónde se pierde MÁS gente entre un paso y el siguiente
+        "fuga": _mayor_fuga(imp, clics, lpv, atc, compras),
+    }
+
+
+def _mayor_fuga(imp, clics, lpv, atc, compras):
+    """El salto del embudo donde se cae más gente, en proporción."""
+    saltos = [("del anuncio al clic", clics, imp, "el creativo no mueve a hacer clic"),
+              ("del clic a la web", lpv, clics, "se pierden antes de que cargue la página"),
+              ("de la web al carrito", atc, lpv, "la landing no convence"),
+              ("del carrito a la compra", compras, atc, "se cae en el checkout")]
+    peor, peor_pct = None, 101
+    for nombre, tienen, de, motivo in saltos:
+        if de <= 0:
+            continue
+        pct = tienen / de * 100
+        if pct < peor_pct:
+            peor, peor_pct = {"salto": nombre, "pasan_pct": round(pct, 1),
+                              "motivo": motivo}, pct
+    return peor
+
+
+# ---------------------------------------------------------------------------
+# BRIEF DE PRODUCCIÓN — lo que hay que respetar al hacer cada variante.
+# ---------------------------------------------------------------------------
+ESTRUCTURA = [
+    ("0-3 s", "GANCHO", "Nombra el dolor en la primera frase. Plano que corte el scroll."),
+    ("3-10 s", "PROBLEMA", "Que se reconozca: la situación concreta del día a día."),
+    ("10-20 s", "SOLUCIÓN", "El producto en uso, resolviendo eso mismo."),
+    ("20-27 s", "PRUEBA", "Por qué creerte: resultado, testimonio o demostración."),
+    ("27-32 s", "CIERRE", "Qué tiene que hacer ahora y por qué merece la pena hoy."),
+]
+
+
+def brief(c, linaje_de_familia=None):
+    """El brief de la siguiente variante de un creativo que funciona.
+
+    No escribe el guion —eso lo hace el chat de creativos— pero sí fija lo
+    que NO se puede tocar, lo que hay que cambiar y por qué. Sale del
+    diagnóstico, así que cada brief es distinto."""
+    d = c.get("diag") or {}
+    l = linaje_de_familia or {}
+    gana = [p["fase"] for p in d.get("pasos", []) if p["ok"]]
+    rompe = [p["fase"] for p in d.get("pasos", []) if not p["ok"]]
+
+    conservar = list(d.get("replicar") or [])
+    if not conservar:
+        conservar = ["el guion tal cual está: es lo único medido"]
+
+    cambiar = ["el GANCHO: mismo dolor, otras primeras palabras",
+               "el AVATAR: otra persona, otra edad o acento",
+               "el ESCENARIO: otro sitio, otra luz, otro plano de apertura"]
+    if "Gancho" in rompe:
+        cambiar[0] = ("el GANCHO ENTERO: es lo que está fallando. Prueba otro dolor "
+                      "y otro plano inicial")
+
+    return {
+        "titulo": f"Brief · {c['etiqueta']}",
+        "nombre_variante": l.get("siguiente_nombre") or (c["ad_name"] + "_V2"),
+        "base": (f"Partes de {c['etiqueta']}: {d.get('resumen','')}"),
+        "gana_en": gana, "rompe_en": rompe,
+        "conservar": conservar,
+        "cambiar": cambiar,
+        "corregir": list(d.get("arreglar") or []),
+        "estructura": [{"t": t, "b": b, "q": q} for t, b, q in ESTRUCTURA],
+        "angulo": c.get("angulo", ""), "formato": c.get("formato", ""),
+        "temperatura": TEMPERATURA.get(c.get("embudo", ""), ("", "sin clasificar"))[1],
+        "cuantas": 3 if c["estado"] == "ganador" else 2,
+    }

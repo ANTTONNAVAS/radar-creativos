@@ -147,6 +147,59 @@
   .metricas{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
   .grafico{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
   .grafico svg{width:100%;height:230px;display:block}
+
+  /* ---------- embudo: del anuncio a la venta ---------- */
+  .embudo{display:flex;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+          border-radius:14px;overflow:hidden}
+  .embudo .paso{flex:1;min-width:132px;padding:17px 14px;text-align:center;border-right:1px solid var(--line)}
+  .embudo .paso:last-child{border-right:none}
+  .embudo .n{font-size:23px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  .embudo .l{font-size:11px;color:var(--muted);margin-top:3px}
+  .embudo .c{display:inline-block;margin-top:8px;font-size:11px;font-weight:600;
+             background:var(--v-bg);color:var(--v);padding:3px 9px;border-radius:20px}
+  .fuga{background:var(--a-bg);border:1px solid #ecd9a6;border-radius:12px;padding:13px 16px;
+        margin-top:12px;font-size:13.5px;color:#7a5c00}
+  .fuga b{color:var(--a)}
+
+  /* ---------- conjuntos: escalar o cortar ---------- */
+  .veredictos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  @media(max-width:640px){.veredictos{grid-template-columns:repeat(2,1fr)}}
+  .vtile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .vtile .n{font-size:25px;font-weight:800;line-height:1}
+  .vtile .l{font-size:12px;font-weight:600;margin-top:3px}
+  .vtile .s{font-size:11px;color:var(--muted);margin-top:3px}
+  .vtile.r{background:var(--r-bg);border-color:#f3c2cc}.vtile.r .n,.vtile.r .l{color:var(--r)}
+  .vtile.g{background:var(--g-bg);border-color:#bfe6d2}.vtile.g .n,.vtile.g .l{color:var(--g)}
+  .vtile.a{background:var(--a-bg);border-color:#ecd9a6}.vtile.a .n,.vtile.a .l{color:var(--a)}
+  .cj{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 0;
+      border-top:1px solid var(--line)}
+  .cj:first-of-type{border-top:none}
+  .cj .nom{flex:1;min-width:170px;font-weight:700;font-size:14.5px}
+  .cj .nom small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:1px}
+  .cj .dato{text-align:right;min-width:62px}
+  .cj .dato b{display:block;font-size:14.5px;font-variant-numeric:tabular-nums}
+  .cj .dato span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .cj .ver{text-align:right;min-width:112px}
+  .cj .ver .acc{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .spark{width:74px;height:26px;flex-shrink:0}
+
+  /* ---------- brief de producción ---------- */
+  .brief{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--v);
+         border-radius:0 14px 14px 0;padding:18px 20px;margin-bottom:12px}
+  .brief .cab{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+  .brief h4{margin:0;font-size:16px;font-weight:800}
+  .brief .base{font-size:13px;color:var(--muted);margin:4px 0 14px}
+  .brief .bloque{margin-top:14px}
+  .brief .bt{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .brief .bt.keep{color:var(--g)} .brief .bt.change{color:var(--v)} .brief .bt.fix{color:var(--a)}
+  .brief ul{margin:0;padding-left:18px;font-size:13.5px}
+  .brief li{margin:3px 0}
+  .guion{margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .guion div{display:flex;gap:12px;padding:8px 12px;font-size:13px;border-top:1px solid var(--line)}
+  .guion div:first-child{border-top:none}
+  .guion .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--muted);
+            min-width:52px;flex-shrink:0;padding-top:2px}
+  .guion .b{font-weight:700;min-width:78px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -156,9 +209,9 @@
   <button id="btnSalir" style="display:none" onclick="salir()">Cambiar cuenta</button>
 </div>
 <div class="tabs" id="tabs" style="display:none">
-  <button class="tab" data-v="camp" onclick="ver('camp')">📊 Campañas</button>
-  <button class="tab" data-v="form" onclick="ver('form')">🎬 Formatos</button>
-  <button class="tab" data-v="bib" onclick="ver('bib')">🎞️ Biblioteca</button>
+  <button class="tab" data-v="camp" onclick="ver('camp')">📊 Resumen</button>
+  <button class="tab" data-v="conj" onclick="ver('conj')">🎯 Conjuntos</button>
+  <button class="tab" data-v="bib" onclick="ver('bib')">🎞️ Creativos</button>
   <button class="tab on" data-v="agente" onclick="ver('agente')">🤖 El Agente</button>
 </div>
 
@@ -226,6 +279,7 @@ function ver(v){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.getElementById('btnCopiar').style.display = v==='agente'?'':'none';
   if(v==='bib'){ CREATIVO=null; if(!BIB){ cargarBiblioteca(); return; } }
+  if(v==='conj' && !DATA){ cargar(); return; }
   if(DATA||BIB) pinta();
 }
 
@@ -259,6 +313,7 @@ function vistaCampanas(d){
     <div class="kpi"><div class="n">${(t.s?t.r/t.s:0).toFixed(2)}</div><div class="l">ROAS</div></div>
     <div class="kpi"><div class="n">${t.p?eur(t.s/t.p):'—'}</div><div class="l">Coste por venta</div></div>
   </div>`;
+  h+=vistaEmbudo(d.embudo);
   h+='<h2>📊 Tus campañas</h2><p class="h2sub">Dónde va el dinero y qué devuelve cada una.</p>';
   h+='<div class="tbl"><table><thead><tr><th>Campaña</th><th>Gasto</th><th>CPM</th><th>CTR</th>'+
      '<th>Visitas</th><th>Carritos</th><th>Ventas</th><th>Coste/venta</th><th>ROAS</th></tr></thead><tbody>';
@@ -416,6 +471,8 @@ function vistaAgente(d){
   if(!d.ganadores.length && !d.promesas.length)
     h+='<div class="card empty">Todavía no hay creativos con datos suficientes. Necesitas más gasto o más anuncios en marcha.</div>';
 
+  h+=vistaBriefs(d);
+
   if(d.matar.length){
     h+='<h2 class="r">🔴 Apagar ya</h2><p class="h2sub">Están quemando presupuesto sin devolver nada.</p>';
     h+=d.matar.map(c=>tarjetaCreativo(c,'r',d)).join('');
@@ -449,7 +506,90 @@ function pinta(){
   document.getElementById('salida').innerHTML =
     VISTA==='bib'  ? vistaBiblioteca() :
     VISTA==='camp' ? vistaCampanas(d)  :
-    VISTA==='form' ? vistaFormatos(d)  : vistaAgente(d);
+    VISTA==='conj' ? vistaConjuntos(d) : vistaAgente(d);
+}
+
+/* ---------- 📉 embudo: del anuncio a la venta ---------- */
+function vistaEmbudo(e){
+  if(!e) return '';
+  let h='<h2 class="v">📉 Del anuncio a la venta</h2>'+
+        '<p class="h2sub">Cuánta gente llega a cada paso y lo que cuesta cada salto.</p>'+
+        '<div class="embudo">'+e.pasos.map(p=>`<div class="paso">
+          <div class="n">${num(p.valor)}</div><div class="l">${esc(p.nombre)}</div>
+          <span class="c">${esc(p.coste_nombre)} ${eur(p.coste)}</span></div>`).join('')+'</div>';
+  if(e.fuga) h+=`<div class="fuga">🩹 <b>Donde más gente se cae:</b> ${esc(e.fuga.salto)} —
+    solo pasa el ${String(e.fuga.pasan_pct).replace('.',',')}%. Probablemente ${esc(e.fuga.motivo)}.</div>`;
+  return h;
+}
+
+/* ---------- 🎯 CONJUNTOS: escalar o cortar ---------- */
+function sparkline(serie){
+  const v=(serie||[]).filter(x=>typeof x==='number');
+  if(v.length<2) return '<svg class="spark"></svg>';
+  const W=74,H=26,min=Math.min(...v),max=Math.max(...v),r=(max-min)||1;
+  const pts=v.map((y,i)=>[i*(W-2)/(v.length-1)+1, H-2-(y-min)/r*(H-6)]);
+  const col=v[v.length-1]>=v[0]?'var(--g)':'var(--r)';
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${
+    pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')
+  }" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function vistaConjuntos(d){
+  const c=d.conjuntos;
+  if(!c) return '<div class="card empty">No se han podido leer los conjuntos de esta cuenta.</div>';
+  let h=`<div class="veredictos">
+    <div class="vtile r"><div class="n">${c.cortar}</div><div class="l">A cortar</div>
+      <div class="s">${c.libera?'liberan '+eur(c.libera):'nada que cortar'}</div></div>
+    <div class="vtile g"><div class="n">${c.escalar}</div><div class="l">A escalar</div>
+      <div class="s">sube 20% presupuesto</div></div>
+    <div class="vtile a"><div class="n">${c.vigilar}</div><div class="l">A vigilar</div>
+      <div class="s">cae pero rentable</div></div>
+    <div class="vtile"><div class="n">${c.sin_tocar}</div><div class="l">Sin tocar</div>
+      <div class="s">estables o aprendiendo</div></div></div>`;
+
+  h+='<h2 class="v">🎯 ¿Escalar o cortar?</h2>'+
+     '<p class="h2sub">El creativo dice qué producir; el conjunto dice dónde va el dinero. '+
+     'Cada uno con su tendencia en el periodo que tengas filtrado.</p><div class="card">';
+  h+=c.lista.map(x=>{
+    const p={'CORTAR':'p-r','ESCALAR':'p-g','VIGILAR':'p-a','MANTENER':'p-b'}[x.veredicto]||'p-m';
+    const fl=x.tendencia.dir==='sube'?'▲':(x.tendencia.dir==='baja'?'▼':'→');
+    const col=x.tendencia.dir==='sube'?'var(--g)':(x.tendencia.dir==='baja'?'var(--r)':'var(--m)');
+    return `<div class="cj">
+      <div class="nom">${esc(x.nombre)}<small>${esc(x.tendencia.texto)}</small></div>
+      ${sparkline(x.serie)}
+      <div class="dato"><b style="color:${col}">${fl} ${x.roas}</b><span>ROAS</span></div>
+      <div class="dato"><b>${eur(x.gasto)}</b><span>Gasto</span></div>
+      <div class="dato"><b>${x.ventas}</b><span>Ventas</span></div>
+      <div class="ver"><span class="pill ${p}">${esc(x.veredicto)}</span>
+        <div class="acc">${esc(x.accion)}</div></div></div>`;}).join('');
+  h+='</div><p class="h2sub" style="margin-top:10px">ℹ️ Un conjunto con poco gasto se marca '+
+     '<b>Aprendizaje</b> y no se corta antes de tiempo.</p>';
+  return h;
+}
+
+/* ---------- 📝 BRIEFS DE PRODUCCIÓN ---------- */
+function vistaBriefs(d){
+  const bs=d.briefs||[];
+  if(!bs.length) return '';
+  let h='<h2 class="v">📝 Briefs de producción</h2>'+
+        '<p class="h2sub">Lo que hay que respetar en cada variante. El guion lo escribes tú '+
+        'o tu chat de creativos; esto fija las reglas para que no se pierda lo que funciona.</p>';
+  h+=bs.map(b=>`<div class="brief">
+    <div class="cab"><h4>${esc(b.titulo)}</h4>
+      <span class="pill p-v">${b.cuantas} variantes</span></div>
+    <div class="base">${esc(b.base)}</div>
+    <div class="copyname"><code>${esc(b.nombre_variante)}</code>
+      <button class="mini" onclick="copiar(this.previousElementSibling.textContent,this)">Copiar nombre</button></div>
+    <div class="bloque"><div class="bt keep">✅ Conservar — no se toca</div>
+      <ul>${b.conservar.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+    <div class="bloque"><div class="bt change">🔄 Cambiar en cada variante</div>
+      <ul>${b.cambiar.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
+    ${b.corregir.length?`<div class="bloque"><div class="bt fix">🩹 Corregir</div>
+      <ul>${b.corregir.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>`:''}
+    <div class="bloque"><div class="bt">🎬 Estructura</div>
+      <div class="guion">${b.estructura.map(e=>`<div><span class="t">${esc(e.t)}</span>
+        <span class="b">${esc(e.b)}</span><span>${esc(e.q)}</span></div>`).join('')}</div></div>
+  </div>`).join('');
+  return h;
 }
 
 /* ---------- 🎞️ BIBLIOTECA DE CREATIVOS ---------- */

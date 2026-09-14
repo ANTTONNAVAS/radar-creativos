@@ -77,6 +77,22 @@ def api_radar():
         "angulos": f["angulos"], "tipos": f["tipos"],
     } for f in radar.build_formats(filas)]
 
+    # El embudo paso a paso: dónde se cae la gente entre el anuncio y la venta.
+    out["embudo"] = radar.embudo_visual(filas)
+
+    # Decisiones de presupuesto: eso se decide por CONJUNTO, no por creativo.
+    try:
+        cjs = meta_api.get_insights(token, cuenta, "adset", rango)
+        series_cj = meta_api.serie_diaria_ads(token, cuenta, rango, nivel="adset")
+        out["conjuntos"] = radar.conjuntos(cjs, series_cj)
+    except Exception:
+        out["conjuntos"] = None
+
+    # Un brief de producción por cada creativo que merece variantes.
+    lin = {l["familia"]: l for l in out.get("linaje") or []}
+    out["briefs"] = [radar.brief(c, lin.get(c["familia"]))
+                     for c in (out["ganadores"] + out["promesas"])]
+
     out["ok"] = True
     out["rango"] = rango
     return out, 200
