@@ -344,13 +344,11 @@ def plan_semanal(d):
     """Cuántos creativos tocan esta semana, repartidos. El objetivo del método
     son 25-30 a la semana: si con lo que hay no se llega, se completa con
     ángulos nuevos."""
-    g, p = len(d["ganadores"]), len(d["promesas"])
-    hu = min(len(d.get("huecos") or []), 6)
-    vg, vp, vt = g * 3, p * 2, hu
-    total = vg + vp + vt
-    extra = max(0, 25 - total)
-    return {"ganadores": g, "promesas": p, "var_ganadores": vg, "var_promesas": vp,
-            "tests": vt, "extra": extra, "total": total + extra}
+    enc = encargo_semanal(d)
+    return {"ganadores": len(d["ganadores"]), "promesas": len(d["promesas"]),
+            "var_ganadores": enc["variantes_ganadores"],
+            "var_promesas": enc["variantes_promesas"],
+            "tests": enc["tests"], "extra": enc["faltan"], "total": enc["piezas"]}
 
 
 def texto_para_ia(d):
@@ -977,6 +975,72 @@ OBJETIVO_SEMANA = 25        # el listón del método
 MAX_VARIANTES = 5           # más de 5 clones del mismo creativo ya es repetirse
 
 
+# Los formatos con los que se puede rodar aunque la cuenta no los haya usado
+# nunca. Sirven para que SIEMPRE haya cruces sin probar de los que tirar: un
+# ángulo que gana contado de otra manera sigue siendo una idea con respaldo.
+CATALOGO_FORMATOS = ("TESTIMONIO", "UGC", "DEMO", "UNBOXING", "PODCAST", "GRWM",
+                     "ESTO-VS-ESTO", "X-RAZONES", "QA", "TALKING-HEAD",
+                     "VOZ-EN-OFF", "ANTES-DESPUES", "DIA-A-DIA", "COMPARATIVA")
+
+
+def _pool_cruces(an):
+    """Todos los cruces sin probar, del más respaldado al menos.
+
+    Orden: primero lo que ya calculó el análisis, después el ángulo que gana
+    contado en formatos que la cuenta no ha usado nunca, luego el formato que
+    gana aplicado a otros ángulos, y al final el resto de combinaciones. Nunca
+    se explora a ciegas: en toda la lista hay un ingrediente ya validado."""
+    creativos = an.get("creativos") or []
+    ganadores, promesas = an.get("ganadores", []), an.get("promesas", [])
+    semilla = ganadores or promesas
+    probados = {(c.get("angulo", ""), c.get("formato", "")) for c in creativos}
+    ang_top = sorted({c["angulo"] for c in semilla if c.get("angulo")})
+    fmt_top = sorted({c["formato"] for c in semilla if c.get("formato")})
+    todos_ang = sorted({c["angulo"] for c in creativos if c.get("angulo")})
+    tira = "está ganando" if ganadores else "es lo que más engancha"
+
+    pool, vistos = [], set()
+
+    def mete(a, f, razon):
+        if not a or not f or (a, f) in probados or (a, f) in vistos:
+            return
+        vistos.add((a, f))
+        pool.append({"angulo": a, "formato": f, "razon": razon})
+
+    for h in (an.get("huecos") or []):
+        mete(h.get("angulo", ""), h.get("formato", ""), h.get("razon", ""))
+    for a in ang_top:                      # el ángulo que tira, contado de otra forma
+        for f in CATALOGO_FORMATOS:
+            mete(a, f, f"el ángulo '{a}' {tira}; en {f} todavía no se ha contado")
+    for f in fmt_top:                      # el formato que tira, con otro ángulo
+        for a in todos_ang:
+            mete(a, f, f"el formato '{f}' {tira}; este ángulo aún no se ha probado en él")
+    for a in todos_ang:                    # el resto, ya sin ingrediente ganador
+        for f in CATALOGO_FORMATOS:
+            mete(a, f, f"combinación sin probar en la cuenta")
+    return pool
+
+
+def _plan_copias_test(nombre_base, cuantas, formato="", angulo=""):
+    """Varios conceptos del mismo cruce, cada uno con su nombre.
+
+    En un test no hay guion que conservar, así que lo que cambia entre copias
+    no es el gancho: es la IDEA entera. Se piden ideas distintas, no versiones
+    de la misma."""
+    nombres = nombres_de_la_tanda(nombre_base, cuantas)
+    ideas = [("la idea base", f"el ángulo «{angulo}» contado en {formato} de la forma más directa"),
+             ("otro concepto", "misma idea, otra historia y otro gancho de entrada"),
+             ("el contraejemplo", "cuéntalo desde lo que pasa si NO se resuelve el problema"),
+             ("la versión corta", "lo mismo en 15 s, entrando al problema en el segundo 1"),
+             ("otra voz", "el mismo concepto contado por otro tipo de persona")]
+    plan = []
+    for i, n in enumerate(nombres):
+        que, como = ideas[i % len(ideas)]
+        plan.append({"n": i + 1, "nombre": n, "cambia": que, "como": como,
+                     "resto": "Es un test: escribe el guion desde cero, no clones nada."})
+    return plan
+
+
 def brief_nuevo(angulo, formato, referencia, motivo=""):
     """Brief de un creativo NUEVO (un cruce que aún no se ha probado).
 
@@ -1037,15 +1101,23 @@ def encargo_semanal(an, objetivo=OBJETIVO_SEMANA):
     """
     lin = {l["familia"]: l for l in (an.get("linaje") or [])}
     ganadores, promesas = an.get("ganadores", []), an.get("promesas", [])
-    huecos = an.get("huecos") or []
 
-    # Cuántas variantes por creativo, subiendo hasta llegar al objetivo.
+    # Cuántas variantes por creativo, subiendo hasta donde deja el método.
+    # Más de MAX_VARIANTES clones del mismo creativo ya es repetirse, así que
+    # lo que falte para el objetivo se cubre con cruces sin probar, no
+    # estirando más los mismos ganadores.
+    # Y siempre se reserva un hueco para explorar: si toda la semana son
+    # clones de lo que ya funciona, el día que el ganador se queme no hay
+    # nada detrás. Una quinta parte del encargo va a cruces sin probar.
+    reserva = max(3, objetivo // 5)
+    tope_variantes = objetivo - reserva
+
     por_ganador, por_promesa = 3, 2
-    def _total(g, p):
-        return len(ganadores) * g + len(promesas) * p + min(len(huecos), 6)
-    while _total(por_ganador, por_promesa) < objetivo and por_ganador < MAX_VARIANTES:
+    def _var(g, p):
+        return len(ganadores) * g + len(promesas) * p
+    while _var(por_ganador, por_promesa) < tope_variantes and por_ganador < MAX_VARIANTES:
         por_ganador += 1
-        if _total(por_ganador, por_promesa) < objetivo and por_promesa < MAX_VARIANTES - 1:
+        if _var(por_ganador, por_promesa) < tope_variantes and por_promesa < MAX_VARIANTES - 1:
             por_promesa += 1
 
     briefs = []
@@ -1066,26 +1138,72 @@ def encargo_semanal(an, objetivo=OBJETIVO_SEMANA):
     for c in promesas:
         _mete(c, por_promesa)
 
-    # Para cada cruce sin probar, buscamos de dónde sale el ingrediente que gana.
+    piezas = sum(b["cuantas"] for b in briefs)
+
+    # --- Lo que falte hasta el objetivo se cubre con CRUCES SIN PROBAR ---
+    # El pool sale de cruzar lo que ya funciona con formatos que todavía no se
+    # han usado, así que por muy corta que vaya la cuenta siempre hay de dónde
+    # sacar piezas sin inventarse nada.
     ref_por_angulo = {c["angulo"]: c for c in (ganadores + promesas) if c.get("angulo")}
     ref_por_formato = {c["formato"]: c for c in (ganadores + promesas)}
-    for h in huecos[:6]:
+    pool = _pool_cruces(an)
+    arranque = not briefs and not pool
+    if arranque:
+        # Cuenta recién estrenada: no hay nada medido de lo que partir, pero
+        # el encargo tiene que salir igual. Se da una pieza por formato y el
+        # ángulo lo pone la persona desde su research.
+        pool = [{"angulo": "POR-DEFINIR", "formato": f,
+                 "razon": "arranque: aún no hay nada medido en esta cuenta"}
+                for f in CATALOGO_FORMATOS]
+    tests = []
+    # El mínimo de tests se cumple aunque las variantes ya lleguen solas al
+    # objetivo: explorar no es el relleno, es parte del encargo.
+    for h in pool:
+        if piezas >= objetivo and len(tests) >= reserva:
+            break
         ref = ref_por_angulo.get(h["angulo"]) or ref_por_formato.get(h["formato"])
-        briefs.append(brief_nuevo(h["angulo"], h["formato"], ref, h.get("razon", "")))
+        b = brief_nuevo(h["angulo"], h["formato"], ref, h.get("razon", ""))
+        if arranque:
+            b["aviso"] = ("Cambia POR-DEFINIR por el ángulo que saques de tu research y "
+                          "CONCEPTO por el nombre de la idea, antes de subirlo.")
+        tests.append(b)
+        briefs.append(b)
+        piezas += 1
 
-    piezas = sum(b["cuantas"] for b in briefs)
+    # Si hasta el pool se queda corto (cuenta con dos creativos y poco más),
+    # se piden DOS conceptos distintos del mismo cruce antes que dejar el
+    # encargo por debajo del objetivo.
+    i = 0
+    while piezas < objetivo and tests and i < len(tests) * (MAX_VARIANTES - 1):
+        b = tests[i % len(tests)]
+        b["cuantas"] += 1
+        b["plan_copias"] = _plan_copias_test(b["nombre_variante"], b["cuantas"],
+                                             b.get("formato", ""), b.get("angulo", ""))
+        piezas += 1
+        i += 1
+
     faltan = max(0, objetivo - piezas)
     return {
         "briefs": briefs,
         "variantes_ganadores": len(ganadores) * por_ganador,
         "variantes_promesas": len(promesas) * por_promesa,
-        "tests": min(len(huecos), 6),
+        "tests": sum(b["cuantas"] for b in tests),
+        "n_tests": len(tests),
         "por_ganador": por_ganador, "por_promesa": por_promesa,
         "piezas": piezas, "objetivo": objetivo, "faltan": faltan,
-        # Si aún faltan, se dice claro: hay que traer ángulos del research.
-        "nota_faltan": (f"Faltan {faltan} para llegar a {objetivo}. Sácalos de tu "
-                        "research: ángulos que todavía no hayas puesto en marcha."
+        # Solo se queda corto si la cuenta no tiene ni un creativo bien
+        # nombrado del que partir. Entonces se dice, en vez de rellenar.
+        "arranque": arranque,
+        "nota_faltan": (f"Faltan {faltan} para llegar a {objetivo}: esta cuenta todavía "
+                        "no tiene creativos bien nombrados de los que partir. Sácalos de "
+                        "tu research y súbelos con la nomenclatura completa."
                         if faltan else None),
+        # Cuando no hay nada medido se dice claro de dónde sale el encargo.
+        "nota_arranque": ("Esta cuenta aún no tiene nada medido, así que el encargo es de "
+                          "ARRANQUE: los formatos están puestos para cubrir terreno y los "
+                          "ángulos los pones tú desde tu research. En cuanto haya datos, la "
+                          "semana siguiente ya sale de lo que funcione."
+                          if arranque else None),
     }
 
 
@@ -1242,6 +1360,8 @@ def texto_brief_semanal(d, enc=None, fecha=""):
            f"({enc.get('por_promesa', 0)} por creativo)",
            f"- Tests nuevos (cruces sin probar): **{enc.get('tests', 0)}**",
            f"- Objetivo de la semana: **{enc.get('objetivo', 0)}**"]
+    if enc.get("nota_arranque"):
+        out.append(f"- ⚠️ {enc['nota_arranque']}")
     if enc.get("nota_faltan"):
         out.append(f"- ⚠️ {enc['nota_faltan']}")
 

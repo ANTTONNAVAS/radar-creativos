@@ -524,8 +524,10 @@ function vistaAgente(d){
     <div class="row"><span>Variantes de ganadores (× ${E.por_ganador||3} cada uno)</span><b>${E.variantes_ganadores||0}</b></div>
     <div class="row"><span>Variantes de promesas (× ${E.por_promesa||2} cada una)</span><b>${E.variantes_promesas||0}</b></div>
     <div class="row"><span>Tests de cruces sin probar</span><b>${E.tests||0}</b></div>
-    <div class="row tot"><span>Creativos con brief</span><b>${E.piezas||0}</b></div>
+    <div class="row tot"><span>Creativos con brief</span><b>${E.piezas||0}</b>
+      <span class="hint" style="margin-left:8px">objetivo ${E.objetivo||25}</span></div>
   </div>`;
+  if(E.nota_arranque) h+=`<div class="fuga" style="margin-top:-4px;margin-bottom:14px">🚀 ${esc(E.nota_arranque)}</div>`;
   if(E.nota_faltan) h+=`<div class="fuga" style="margin-top:-4px;margin-bottom:14px">🎯 ${esc(E.nota_faltan)}</div>`;
 
   h+='<h2 class="v">🧠 Qué está funcionando y por qué</h2>'+
