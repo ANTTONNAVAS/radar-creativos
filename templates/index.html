@@ -250,6 +250,9 @@
   .ccard.peor{border-color:#f3c2cc;background:var(--r-bg)} .ccard.peor .v{color:var(--r)}
   .ccard.igual .v,.ccard.neutro .v{color:var(--m)}
   .presu{margin-top:5px;font-size:11.5px;font-weight:600;color:var(--v)}
+  .miga{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .miga .sep{color:var(--muted);font-size:13px}
+  #salida table tr[onclick]:hover{background:var(--v-bg)}
 </style>
 </head>
 <body>
@@ -262,6 +265,7 @@
   <button class="tab" data-v="camp" onclick="ver('camp')">📊 Resumen</button>
   <button class="tab" data-v="conj" onclick="ver('conj')">🎯 Conjuntos</button>
   <button class="tab" data-v="bib" onclick="ver('bib')">🎞️ Creativos</button>
+  <button class="tab" data-v="tabla" onclick="ver('tabla')">📋 Métricas</button>
   <button class="tab on" data-v="agente" onclick="ver('agente')">🤖 El Agente</button>
 </div>
 
@@ -328,6 +332,8 @@ function ver(v){
   VISTA=v;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   document.getElementById('btnCopiar').style.display = v==='agente'?'':'none';
+  CONJ=null; CONJ_FICHA=null;
+  if(v==='tabla'){ if(!TABLA) { cargarTabla('campaign',null,''); return; } }
   if(v==='bib'){ CREATIVO=null; if(!BIB){ cargarBiblioteca(); return; } }
   if(v==='conj' && !DATA){ cargar(); return; }
   if(DATA||BIB) pinta();
@@ -335,7 +341,8 @@ function ver(v){
 
 function cambiarRango(){
   // Al cambiar el periodo, la biblioteca deja de valer: se vuelve a pedir.
-  BIB=null; CREATIVO=null;
+  BIB=null; CREATIVO=null; CONJ=null; CONJ_FICHA=null; TABLA=null; RUTA=[];
+  if(VISTA==='tabla'){ cargarTabla('campaign',null,''); return; }
   if(VISTA==='bib') cargarBiblioteca(); else cargar();
 }
 
@@ -507,15 +514,17 @@ function vistaAgente(d){
   const P=plan(d);
   let h=vistaProtocolo(d);          // lo primero: qué toca hacer HOY
   h+=bloqueAgente24();
+  const E=d.encargo||{};
   h+=`<div class="plan">
     <h3>🤖 Tu plan de esta semana</h3>
-    <div class="sub">Calculado con lo que está pasando ahora mismo en tu cuenta.</div>
-    <div class="row"><span>Variantes de ganadores (${P.g} × 3)</span><b>${P.vg}</b></div>
-    <div class="row"><span>Variantes de promesas (${P.p} × 2)</span><b>${P.vp}</b></div>
-    <div class="row"><span>Tests nuevos sin probar</span><b>${P.vt}</b></div>
-    ${P.extra?`<div class="row"><span>Ángulos nuevos para llegar al objetivo</span><b>${P.extra}</b></div>`:''}
-    <div class="row tot"><span>Creativos a producir</span><b>${P.total}</b></div>
+    <div class="sub">Cada pieza de aquí abajo tiene su brief. Calculado con lo que
+      está pasando ahora mismo en tu cuenta.</div>
+    <div class="row"><span>Variantes de ganadores (× ${E.por_ganador||3} cada uno)</span><b>${E.variantes_ganadores||0}</b></div>
+    <div class="row"><span>Variantes de promesas (× ${E.por_promesa||2} cada una)</span><b>${E.variantes_promesas||0}</b></div>
+    <div class="row"><span>Tests de cruces sin probar</span><b>${E.tests||0}</b></div>
+    <div class="row tot"><span>Creativos con brief</span><b>${E.piezas||0}</b></div>
   </div>`;
+  if(E.nota_faltan) h+=`<div class="fuga" style="margin-top:-4px;margin-bottom:14px">🎯 ${esc(E.nota_faltan)}</div>`;
 
   h+='<h2 class="v">🧠 Qué está funcionando y por qué</h2>'+
      '<p class="h2sub">El agente mira el recorrido completo de cada vídeo: gancho → guion → clic → landing → cierre.</p>';
@@ -557,6 +566,7 @@ function vistaAgente(d){
 function pinta(){
   const d=DATA;
   document.getElementById('salida').innerHTML =
+    VISTA==='tabla'? vistaTabla()      :
     VISTA==='bib'  ? vistaBiblioteca() :
     VISTA==='camp' ? vistaCampanas(d)  :
     VISTA==='conj' ? vistaConjuntos(d) : vistaAgente(d);
@@ -621,6 +631,122 @@ function vistaEmbudo(e){
   return h;
 }
 
+/* ---------- 📋 TABLA DE MÉTRICAS (campañas → conjuntos → anuncios) ---------- */
+let TABLA=null, RUTA=[];
+const NIV={campaign:'Campañas', adset:'Conjuntos', ad:'Anuncios'};
+const HIJO={campaign:'adset', adset:'ad', ad:null};
+
+async function cargarTabla(nivel, padre, nombre, empujar){
+  const c=cfg(); if(!c) return;
+  if(empujar) RUTA.push({nivel:nivel, padre:padre, nombre:nombre});
+  TABLA={cargando:true, nivel:nivel}; pinta();
+  try{
+    const r=await fetch('/api/tabla',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,nivel:nivel,padre:padre||'',
+                           rango:document.getElementById('selRango').value})});
+    TABLA=await r.json(); TABLA.nivel=nivel;
+  }catch(e){ TABLA={ok:false,error:'No se pudo cargar la tabla.',nivel:nivel}; }
+  pinta();
+}
+function subirNivel(i){
+  RUTA=RUTA.slice(0,i);
+  const r=RUTA[RUTA.length-1];
+  cargarTabla(r?r.nivel:'campaign', r?r.padre:null, r?r.nombre:'');
+}
+function entrar(nivel, id, nombre){
+  const h=HIJO[nivel]; if(!h) return;
+  if(!RUTA.length) RUTA=[{nivel:'campaign',padre:null,nombre:''}];
+  cargarTabla(h, id, nombre, true);
+}
+
+const COLS=[
+  ['Gasto','spend','eur'], ['Presup.','budget','txt'], ['HOOK','hook_rate','pct1'],
+  ['CPM','cpm','eur'], ['CPC','cpc_link','eur'], ['CTR único','ctr_unique','pct2'],
+  ['Clics sal.','outbound_unique','num'], ['Visitas LP','lpv','num'],
+  ['Coste/visita','cost_lpv','eur'], ['Art. carrito','add_to_cart','num'],
+  ['ADD TO CART','atc_pct','pct2'], ['Coste/art.','cost_cart','eur'],
+  ['Pagos ini.','checkout','num'], ['Coste/pago','cost_checkout','eur'],
+  ['INICIO CHECKOUT','checkout_pct','pct2'], ['CR','cr','pct2'],
+  ['Compras','purchases','num'], ['Coste/compra','cpa','eur'],
+  ['Valor','revenue','eur'], ['ROAS','roas','roas'],
+  ['Vídeo 25%','v25','num'], ['Vídeo 50%','v50','num'],
+  ['Vídeo 75%','v75','num'], ['Vídeo 95%','v95','num'],
+];
+function celda(v, f){
+  if(v===null||v===undefined) return '—';
+  if(f==='txt') return esc(v);
+  if(f==='num') return num(Math.round(v));
+  if(f==='eur') return Number(v)?eur(v):'—';
+  if(f==='pct1') return Number(v).toFixed(1).replace('.',',')+'%';
+  if(f==='pct2') return Number(v).toFixed(2).replace('.',',')+'%';
+  if(f==='roas'){const n=Number(v);
+    return `<b style="color:${n>=2?'var(--g)':(n>=1?'var(--a)':'var(--r)')}">${n.toFixed(2).replace('.',',')}</b>`;}
+  return esc(v);
+}
+function vistaTabla(){
+  const t=TABLA;
+  let h='<h2 class="v">📋 Todas las métricas</h2>'+
+        '<p class="h2sub">Las mismas columnas que el preset ECOM del Administrador de Anuncios. '+
+        'Pulsa una fila para meterte dentro.</p>';
+  h+='<div class="miga">'+
+     `<button class="chip ${!RUTA.length?'on':''}" onclick="subirNivel(0)">Todas las campañas</button>`+
+     RUTA.slice(1).map((r,i)=>`<span class="sep">›</span>
+        <button class="chip ${i===RUTA.length-2?'on':''}" onclick="subirNivel(${i+2})">${esc(r.nombre)}</button>`).join('')+
+     '</div>';
+  if(!t || t.cargando) return h+'<div class="load">Leyendo Meta…</div>';
+  if(!t.ok) return h+'<div class="err">'+esc(t.error||'No se pudo cargar.')+'</div>';
+  if(!t.filas.length) return h+'<div class="card empty">Sin datos en este periodo.</div>';
+
+  const hijo=HIJO[t.nivel];
+  h+=`<p class="h2sub" style="margin-bottom:8px">Viendo <b>${esc(NIV[t.nivel])}</b> · ${t.filas.length} filas</p>`;
+  h+='<div class="tbl"><table><thead><tr><th>Estado</th><th>'+esc(NIV[t.nivel].slice(0,-1))+'</th>'+
+     COLS.map(c=>`<th>${esc(c[0])}</th>`).join('')+'</tr></thead><tbody>';
+  h+=t.filas.map(f=>{
+    const act=(f.status||'')==='ACTIVE';
+    const clic=hijo?`onclick="entrar('${t.nivel}','${f.id}','${esc(f.name).replace(/'/g,'&#39;')}')" style="cursor:pointer"`:'';
+    return `<tr ${clic}>
+      <td><span class="pill ${act?'p-g':'p-m'}" style="font-size:10px;padding:2px 8px">${act?'Activa':'Pausada'}</span></td>
+      <td style="max-width:230px;white-space:normal">${esc(f.name)}${hijo?' <span style="color:var(--v)">›</span>':''}</td>
+      ${COLS.map(c=>`<td>${celda(f[c[1]], c[2])}</td>`).join('')}</tr>`;}).join('');
+  return h+'</tbody></table></div>';
+}
+
+/* ---------- 🔎 DENTRO DE UN CONJUNTO ---------- */
+let CONJ=null, CONJ_FICHA=null;
+async function abrirConjunto(id, nombre){
+  const c=cfg(); if(!c) return;
+  CONJ={cargando:true, nombre:nombre}; CONJ_FICHA=null; pinta();
+  try{
+    const r=await fetch('/api/conjunto',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,adset_id:id,nombre:nombre,
+                           rango:document.getElementById('selRango').value})});
+    const d=await r.json();
+    CONJ=Object.assign({nombre:nombre}, d);
+  }catch(e){ CONJ={nombre:nombre, ok:false, error:'No se pudo cargar el conjunto.'}; }
+  pinta();
+}
+function cerrarConjunto(){ CONJ=null; CONJ_FICHA=null; pinta(); }
+function abrirCreativoConj(i){ CONJ_FICHA=CONJ.fichas[i]; pinta(); window.scrollTo(0,0); }
+function volverConjunto(){ CONJ_FICHA=null; pinta(); }
+
+function vistaDentroConjunto(){
+  if(CONJ_FICHA) return `<button class="volver" onclick="volverConjunto()">← Volver al conjunto</button>`
+                        + vistaCreativo(CONJ_FICHA).replace(
+                            /<button class="volver"[^>]*>[^<]*<\/button>/, '');
+  let h=`<button class="volver" onclick="cerrarConjunto()">← Volver a los conjuntos</button>
+    <h2 class="v">🔎 ${esc(CONJ.nombre)}</h2>
+    <p class="h2sub">Los creativos que hay dentro de este conjunto. Pulsa uno para ver su evolución.</p>`;
+  if(CONJ.cargando) return h+'<div class="load">Abriendo el conjunto…</div>';
+  if(!CONJ.ok) return h+'<div class="err">'+esc(CONJ.error||'No se pudo cargar.')+'</div>';
+  h+=`<div class="kpis" style="margin-bottom:6px">
+    <div class="kpi"><div class="n">${CONJ.total}</div><div class="l">Creativos</div></div>
+    <div class="kpi"><div class="n g">${CONJ.ganadores}</div><div class="l">Ganadores</div></div>
+    <div class="kpi"><div class="n">${CONJ.en_test}</div><div class="l">En test</div></div>
+    <div class="kpi"><div class="n">${eur(CONJ.inversion)}</div><div class="l">Invertido aquí</div></div></div>`;
+  h+=rejillaCreativos(CONJ.fichas, CONJ.fichas).replace(/abrirCreativo\(/g,'abrirCreativoConj(');
+  return h;
+}
+
 /* ---------- 🎯 CONJUNTOS: escalar o cortar ---------- */
 function sparkline(serie){
   const v=(serie||[]).filter(x=>typeof x==='number');
@@ -633,6 +759,7 @@ function sparkline(serie){
   }" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function vistaConjuntos(d){
+  if(CONJ) return vistaDentroConjunto();
   const c=d.conjuntos;
   if(!c) return '<div class="card empty">No se han podido leer los conjuntos de esta cuenta.</div>';
   let h=`<div class="veredictos">
@@ -650,10 +777,12 @@ function vistaConjuntos(d){
      'Cada uno con su tendencia en el periodo que tengas filtrado.</p><div class="card">';
   h+=c.lista.map(x=>{
     const p={'CORTAR':'p-r','ESCALAR':'p-g','VIGILAR':'p-a','MANTENER':'p-b'}[x.veredicto]||'p-m';
+    const clic=x.id?`onclick="abrirConjunto('${x.id}','${esc(x.nombre).replace(/'/g,"&#39;")}')" style="cursor:pointer"`:'';
     const fl=x.tendencia.dir==='sube'?'▲':(x.tendencia.dir==='baja'?'▼':'→');
     const col=x.tendencia.dir==='sube'?'var(--g)':(x.tendencia.dir==='baja'?'var(--r)':'var(--m)');
-    return `<div class="cj">
-      <div class="nom">${esc(x.nombre)}<small>${esc(x.tendencia.texto)}</small></div>
+    return `<div class="cj" ${clic}>
+      <div class="nom">${esc(x.nombre)} <span style="color:var(--v);font-size:12px">›</span>
+        <small>${esc(x.tendencia.texto)}</small></div>
       ${sparkline(x.serie)}
       <div class="dato"><b style="color:${col}">${fl} ${x.roas}</b><span>ROAS</span></div>
       <div class="dato"><b>${eur(x.gasto)}</b><span>Gasto</span></div>
@@ -670,15 +799,19 @@ function vistaConjuntos(d){
 function vistaBriefs(d){
   const bs=d.briefs||[];
   if(!bs.length) return '';
+  const piezas=bs.reduce((s,b)=>s+b.cuantas,0);
   let h='<h2 class="v">📝 Briefs de producción</h2>'+
-        '<p class="h2sub">Lo que hay que respetar en cada variante. El guion lo escribes tú '+
-        'o tu chat de creativos; esto fija las reglas para que no se pierda lo que funciona.</p>';
+        `<p class="h2sub">Los <b>${piezas} creativos</b> de esta semana, uno a uno. El guion lo `+
+        'escribes tú o tu chat de creativos; el brief fija las reglas para que no se pierda '+
+        'lo que funciona.</p>';
   h+=bs.map(b=>`<div class="brief">
     <div class="cab"><h4>${esc(b.titulo)}</h4>
-      <span class="pill p-v">${b.cuantas} variantes</span></div>
+      <span class="pill ${b.clase==='test'?'p-b':'p-v'}">${
+        b.clase==='test'?'test nuevo':(b.cuantas+' variantes')}</span></div>
     <div class="base">${esc(b.base)}</div>
     <div class="copyname"><code>${esc(b.nombre_variante)}</code>
       <button class="mini" onclick="copiar(this.previousElementSibling.textContent,this)">Copiar nombre</button></div>
+    ${b.aviso?`<div class="hint">⚠️ ${esc(b.aviso)}</div>`:''}
     <div class="bloque"><div class="bt keep">✅ Conservar — no se toca</div>
       <ul>${b.conservar.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul></div>
     <div class="bloque"><div class="bt change">🔄 Cambiar en cada variante</div>
@@ -747,8 +880,14 @@ function vistaBiblioteca(){
 
   if(!f.length) return h+'<div class="card empty" style="margin-top:16px">Ningún creativo con esos filtros.</div>';
 
-  h+='<div class="rejilla">'+f.map(x=>{
-    const i=BIB.fichas.indexOf(x), g=GRAD[x.temp_nombre]||GRAD[''];
+  h+=rejillaCreativos(f, BIB.fichas);
+  if(DATA) h+=vistaFormatos(DATA);   // qué CONCEPTO funciona, debajo de la rejilla
+  return h;
+}
+
+function rejillaCreativos(f, todas){
+  return '<div class="rejilla">'+f.map(x=>{
+    const i=todas.indexOf(x), g=GRAD[x.temp_nombre]||GRAD[''];
     const flecha=x.tendencia.dir==='sube'?'▲':(x.tendencia.dir==='baja'?'▼':'→');
     const col=x.tendencia.dir==='sube'?'var(--g)':(x.tendencia.dir==='baja'?'var(--r)':'var(--m)');
     return `<button class="cre-card" onclick="abrirCreativo(${i})">

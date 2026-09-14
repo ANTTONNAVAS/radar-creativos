@@ -93,10 +93,10 @@ def api_radar():
         for c in out["conjuntos"]["lista"]:
             c["presupuesto"] = radar.presupuesto_sugerido(c)
 
-    # Un brief de producción por cada creativo que merece variantes.
-    lin = {l["familia"]: l for l in out.get("linaje") or []}
-    out["briefs"] = [radar.brief(c, lin.get(c["familia"]))
-                     for c in (out["ganadores"] + out["promesas"])]
+    # El encargo de la semana: CADA creativo a producir con su brief, sean
+    # variantes de lo que funciona o tests de cruces sin probar.
+    out["encargo"] = radar.encargo_semanal(out)
+    out["briefs"] = out["encargo"]["briefs"]
 
     # Reparto real del presupuesto frente al que persigue la metodología.
     out["reparto"] = radar.reparto(camps) if camps else None
@@ -116,7 +116,8 @@ def api_radar():
 
     # Qué toca hacer HOY según el protocolo semanal.
     out["protocolo"] = radar.protocolo(hoy.weekday(), out["conjuntos"],
-                                       radar.plan_semanal(out), out["briefs"])
+                                       {"total": out["encargo"]["piezas"]},
+                                       out["briefs"])
 
     out["ok"] = True
     out["rango"] = rango
@@ -146,6 +147,71 @@ def api_biblioteca():
         series = {}          # sin la serie la biblioteca sigue siendo útil
     out = radar.biblioteca(filas, series)
     out["ok"] = True
+    return out, 200
+
+
+@app.post("/api/tabla")
+def api_tabla():
+    """📋 La tabla de siempre: TODAS las métricas a los tres niveles.
+
+    Campañas → conjuntos → anuncios, con las mismas columnas que el preset
+    ECOM del Administrador de Anuncios, para no tener que salir a Meta a
+    comprobar un dato."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    nivel = d.get("nivel") if d.get("nivel") in ("campaign", "adset", "ad") else "campaign"
+    padre = (d.get("padre") or "").strip() or None
+    rango = d.get("rango") or "last_7d"
+    if not token or not cuenta:
+        return {"ok": False, "error": "Falta el token o el ID de la cuenta."}, 200
+    campo = {"adset": "campaign.id", "ad": "adset.id"}.get(nivel)
+    filtros = ([{"field": campo, "operator": "IN", "value": [padre]}]
+               if (padre and campo) else None)
+    try:
+        filas = meta_api.get_insights(token, cuenta, nivel, rango,
+                                      filters=filtros, parent_id=padre)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, 200
+    campos = ("id", "name", "status", "budget", "spend", "impressions", "frequency",
+              "cpm", "cpc_link", "ctr_unique", "outbound_unique", "lpv", "cost_lpv",
+              "add_to_cart", "atc_pct", "cost_cart", "checkout", "cost_checkout",
+              "checkout_pct", "cr", "purchases", "cpa", "revenue", "roas",
+              "hook_rate", "v25", "v50", "v75", "v95")
+    return {"ok": True, "nivel": nivel,
+            "filas": sorted([{k: f.get(k) for k in campos} for f in filas],
+                            key=lambda x: -(x.get("spend") or 0))}, 200
+
+
+@app.post("/api/conjunto")
+def api_conjunto():
+    """Los creativos que hay DENTRO de un conjunto, con su evolución.
+
+    Es el paso natural: ves que un conjunto se cae y quieres saber cuál de sus
+    creativos lo está hundiendo, sin salir a buscarlo a mano."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    adset = (d.get("adset_id") or "").strip()
+    rango = d.get("rango") or "last_7d"
+    if not token or not cuenta or not adset:
+        return {"ok": False, "error": "Falta el conjunto."}, 200
+    try:
+        filas = meta_api.get_insights(
+            token, cuenta, "ad", rango, parent_id=adset,
+            filters=[{"field": "adset.id", "operator": "IN", "value": [adset]}])
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, 200
+    if not filas:
+        return {"ok": False, "error": "Este conjunto no tiene anuncios con datos "
+                                      "en el periodo elegido."}, 200
+    try:
+        series = meta_api.serie_diaria_ads(token, cuenta, rango)
+    except Exception:
+        series = {}
+    out = radar.biblioteca(filas, series)
+    out["ok"] = True
+    out["nombre"] = d.get("nombre", "")
     return out, 200
 
 

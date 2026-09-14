@@ -857,3 +857,102 @@ def protocolo(hoy_idx, cjs, plan_semana, briefs):
                     "clave": RITUALES.get(i, RITUAL_DIARIO)[0], "hoy": i == hoy_idx}
                    for i in range(7)],
     }
+
+
+# ---------------------------------------------------------------------------
+# 📋 EL ENCARGO DE LA SEMANA — un brief por CADA creativo que hay que producir.
+#
+# El plan no puede decir "25 creativos" y luego darte 2 briefs: cada pieza de
+# la semana sale con sus instrucciones, tenga padre (variante de algo que
+# funciona) o sea un test nuevo.
+# ---------------------------------------------------------------------------
+OBJETIVO_SEMANA = 25        # el listón del método
+MAX_VARIANTES = 5           # más de 5 clones del mismo creativo ya es repetirse
+
+
+def brief_nuevo(angulo, formato, referencia, motivo=""):
+    """Brief de un creativo NUEVO (un cruce que aún no se ha probado).
+
+    No hay diagnóstico del que tirar, así que lo que se conserva es el
+    INGREDIENTE que ya funciona —el ángulo o el formato— y lo nuevo es lo otro.
+    """
+    nivel = (referencia or {}).get("nivel") or "L2"
+    embudo_letra = {"TOFFU": "T", "MOFFU": "M", "BOFFU": "B"}.get(
+        (referencia or {}).get("embudo", ""), "T")
+    ang = (angulo or "GEN").upper().replace(" ", "-")
+    fmt = (formato or "NUEVO").upper().replace(" ", "-")
+    nombre = f"{nivel}_{embudo_letra}_{ang}_{fmt}_V1_CONCEPTO"
+    return {
+        "clase": "test",
+        "titulo": f"Brief · {formato} × {angulo} (nuevo)",
+        "nombre_variante": nombre,
+        "base": motivo or f"Cruce sin probar: el ángulo «{angulo}» con el formato «{formato}».",
+        "gana_en": [], "rompe_en": [],
+        "conservar": [f"el ángulo «{angulo}»: mismo dolor y mismo lenguaje que en lo que ya funciona"]
+                     if referencia else ["nada todavía: es un test desde cero"],
+        "cambiar": [f"el FORMATO: esto va en {formato}, no como lo vienes haciendo",
+                    "el GANCHO: escríbelo desde cero para este formato"],
+        "corregir": [],
+        "estructura": [{"t": t, "b": b, "q": q} for t, b, q in ESTRUCTURA],
+        "angulo": angulo, "formato": formato,
+        "temperatura": TEMPERATURA.get((referencia or {}).get("embudo", ""),
+                                       ("", "Frío"))[1],
+        "cuantas": 1,
+        "aviso": "Sustituye CONCEPTO por el nombre de la idea antes de subirlo.",
+    }
+
+
+def encargo_semanal(an, objetivo=OBJETIVO_SEMANA):
+    """TODO lo que hay que producir esta semana, cada pieza con su brief.
+
+    Reparto: primero variantes de los ganadores (lo seguro), luego de las
+    promesas, luego los cruces sin probar. Si con eso no se llega al objetivo,
+    se suben variantes por ganador antes que inventar ideas de la nada —
+    clonar lo que funciona rinde más que disparar a ciegas.
+    """
+    lin = {l["familia"]: l for l in (an.get("linaje") or [])}
+    ganadores, promesas = an.get("ganadores", []), an.get("promesas", [])
+    huecos = an.get("huecos") or []
+
+    # Cuántas variantes por creativo, subiendo hasta llegar al objetivo.
+    por_ganador, por_promesa = 3, 2
+    def _total(g, p):
+        return len(ganadores) * g + len(promesas) * p + min(len(huecos), 6)
+    while _total(por_ganador, por_promesa) < objetivo and por_ganador < MAX_VARIANTES:
+        por_ganador += 1
+        if _total(por_ganador, por_promesa) < objetivo and por_promesa < MAX_VARIANTES - 1:
+            por_promesa += 1
+
+    briefs = []
+    for c in ganadores:
+        b = brief(c, lin.get(c["familia"]))
+        b["clase"] = "variante"
+        b["cuantas"] = por_ganador
+        briefs.append(b)
+    for c in promesas:
+        b = brief(c, lin.get(c["familia"]))
+        b["clase"] = "variante"
+        b["cuantas"] = por_promesa
+        briefs.append(b)
+
+    # Para cada cruce sin probar, buscamos de dónde sale el ingrediente que gana.
+    ref_por_angulo = {c["angulo"]: c for c in (ganadores + promesas) if c.get("angulo")}
+    ref_por_formato = {c["formato"]: c for c in (ganadores + promesas)}
+    for h in huecos[:6]:
+        ref = ref_por_angulo.get(h["angulo"]) or ref_por_formato.get(h["formato"])
+        briefs.append(brief_nuevo(h["angulo"], h["formato"], ref, h.get("razon", "")))
+
+    piezas = sum(b["cuantas"] for b in briefs)
+    faltan = max(0, objetivo - piezas)
+    return {
+        "briefs": briefs,
+        "variantes_ganadores": len(ganadores) * por_ganador,
+        "variantes_promesas": len(promesas) * por_promesa,
+        "tests": min(len(huecos), 6),
+        "por_ganador": por_ganador, "por_promesa": por_promesa,
+        "piezas": piezas, "objetivo": objetivo, "faltan": faltan,
+        # Si aún faltan, se dice claro: hay que traer ángulos del research.
+        "nota_faltan": (f"Faltan {faltan} para llegar a {objetivo}. Sácalos de tu "
+                        "research: ángulos que todavía no hayas puesto en marcha."
+                        if faltan else None),
+    }
