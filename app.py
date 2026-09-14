@@ -82,6 +82,32 @@ def api_radar():
     return out, 200
 
 
+@app.post("/api/biblioteca")
+def api_biblioteca():
+    """🎞️ La biblioteca de creativos: todos, ordenados por temperatura y
+    ángulo, cada uno con su tendencia, su salud (fatiga) y su evolución día
+    a día — que Meta sirve ya desglosada, sin esperar a acumular histórico."""
+    d = request.get_json(silent=True) or {}
+    token = (d.get("token") or "").strip()
+    cuenta = (d.get("cuenta") or "").strip().replace("act_", "")
+    rango = d.get("rango") or "last_7d"
+    if not token or not cuenta:
+        return {"ok": False, "error": "Falta el token o el ID de la cuenta."}, 200
+    try:
+        filas = meta_api.get_insights(token, cuenta, "ad", rango)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, 200
+    if not filas:
+        return {"ok": False, "error": "Meta no ha devuelto anuncios en ese periodo."}, 200
+    try:
+        series = meta_api.serie_diaria_ads(token, cuenta, rango)
+    except Exception:
+        series = {}          # sin la serie la biblioteca sigue siendo útil
+    out = radar.biblioteca(filas, series)
+    out["ok"] = True
+    return out, 200
+
+
 @app.post("/api/agente/activar")
 def agente_activar():
     """Activa el agente 24/7: a partir de aquí el servidor revisa la cuenta

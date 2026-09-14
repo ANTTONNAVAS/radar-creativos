@@ -91,6 +91,62 @@
   details.guia p,details.guia li{font-size:13.5px;color:#333}
   details.guia code{background:var(--m-bg);padding:2px 7px;border-radius:6px;font-size:12.5px}
   .load{text-align:center;padding:60px 20px;color:var(--muted)}
+
+  /* ---------- 🎞️ Biblioteca de creativos ---------- */
+  .buscar{width:100%;font-size:14.5px;padding:11px 14px;border:1px solid var(--line);
+          border-radius:10px;background:var(--card);margin-bottom:12px;font-family:inherit}
+  .filtro{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .filtro .et{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;
+              letter-spacing:.5px;min-width:88px}
+  .chip{font-family:inherit;font-size:12.5px;font-weight:600;background:var(--card);
+        border:1px solid var(--line);border-radius:20px;padding:5px 13px;cursor:pointer;color:var(--ink)}
+  .chip:hover{border-color:var(--v)}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip .pt{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+  .rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:16px}
+  .cre-card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+            cursor:pointer;text-align:left;padding:0;font-family:inherit;color:inherit;
+            transition:border-color .15s,transform .12s}
+  .cre-card:hover{border-color:var(--v);transform:translateY(-2px)}
+  .cre-card:focus-visible{outline:2px solid var(--v);outline-offset:2px}
+  .miniatura{height:132px;position:relative;display:flex;align-items:center;justify-content:center}
+  .miniatura .play{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.28);
+                   display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff}
+  .miniatura .tipo{position:absolute;top:9px;left:9px;background:rgba(0,0,0,.42);color:#fff;
+                   font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.4px}
+  .miniatura .rend{position:absolute;top:9px;right:9px;font-size:10.5px;font-weight:800;
+                   padding:3px 9px;border-radius:6px}
+  .rend.g{background:var(--g);color:#fff}.rend.a{background:var(--a);color:#fff}
+  .rend.r{background:var(--r);color:#fff}.rend.m{background:rgba(255,255,255,.85);color:var(--m)}
+  .cre-card .cuerpo{padding:12px 13px 13px}
+  .cre-card .tit{font-weight:700;font-size:13px;line-height:1.3;word-break:break-word}
+  .cre-chips{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 10px}
+  .tchip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  .t-frio{background:var(--b-bg);color:var(--b)}.t-templado{background:var(--a-bg);color:var(--a)}
+  .t-caliente{background:var(--r-bg);color:var(--r)}.t-sin{background:var(--m-bg);color:var(--m)}
+  .ang{background:var(--v-bg);color:var(--v)}
+  .cre-card .pie{display:flex;justify-content:space-between;gap:6px;font-size:12px}
+  .cre-card .pie div{display:flex;flex-direction:column}
+  .cre-card .pie b{font-size:13px}
+  .cre-card .pie span{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  /* ---------- ficha del creativo ---------- */
+  .volver{font-family:inherit;font-size:13px;font-weight:600;background:var(--card);
+          border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;
+          color:var(--ink);margin-bottom:16px}
+  .ficha-cab{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+  .ficha-cab .mini{width:72px;height:72px;border-radius:12px;flex-shrink:0;display:flex;
+                   align-items:center;justify-content:center;color:#fff;font-size:20px}
+  .salud{display:flex;gap:13px;align-items:flex-start;border-radius:13px;padding:15px 17px;margin-bottom:14px}
+  .salud .ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;
+             justify-content:center;font-size:18px;flex-shrink:0;color:#fff}
+  .salud .tit{font-weight:700;font-size:15px}
+  .salud .txt{font-size:13.5px;margin-top:2px}
+  .s-sano{background:var(--g-bg)} .s-sano .ic{background:var(--g)} .s-sano .tit{color:var(--g)}
+  .s-vigilar{background:var(--a-bg)} .s-vigilar .ic{background:var(--a)} .s-vigilar .tit{color:var(--a)}
+  .s-quemado{background:var(--r-bg)} .s-quemado .ic{background:var(--r)} .s-quemado .tit{color:var(--r)}
+  .metricas{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .grafico{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .grafico svg{width:100%;height:230px;display:block}
 </style>
 </head>
 <body>
@@ -102,6 +158,7 @@
 <div class="tabs" id="tabs" style="display:none">
   <button class="tab" data-v="camp" onclick="ver('camp')">📊 Campañas</button>
   <button class="tab" data-v="form" onclick="ver('form')">🎬 Formatos</button>
+  <button class="tab" data-v="bib" onclick="ver('bib')">🎞️ Biblioteca</button>
   <button class="tab on" data-v="agente" onclick="ver('agente')">🤖 El Agente</button>
 </div>
 
@@ -127,7 +184,7 @@
 <!-- ============ PANEL ============ -->
 <div class="wrap" id="panel" style="display:none">
   <div class="bar">
-    <select class="rango" id="selRango" onchange="cargar()">
+    <select class="rango" id="selRango" onchange="cambiarRango()">
       <option value="last_7d">Últimos 7 días</option>
       <option value="last_14d">Últimos 14 días</option>
       <option value="last_30d">Últimos 30 días</option>
@@ -164,8 +221,19 @@ function guardar(){
   localStorage.setItem(LS,JSON.stringify({token:t,cuenta:a})); location.reload();
 }
 function salir(){localStorage.removeItem(LS); location.reload();}
-function ver(v){VISTA=v; document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  document.getElementById('btnCopiar').style.display = v==='agente'?'':'none'; if(DATA) pinta();}
+function ver(v){
+  VISTA=v;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('btnCopiar').style.display = v==='agente'?'':'none';
+  if(v==='bib'){ CREATIVO=null; if(!BIB){ cargarBiblioteca(); return; } }
+  if(DATA||BIB) pinta();
+}
+
+function cambiarRango(){
+  // Al cambiar el periodo, la biblioteca deja de valer: se vuelve a pedir.
+  BIB=null; CREATIVO=null;
+  if(VISTA==='bib') cargarBiblioteca(); else cargar();
+}
 
 async function cargar(){
   const c=cfg(); if(!c) return;
@@ -379,7 +447,170 @@ function vistaAgente(d){
 function pinta(){
   const d=DATA;
   document.getElementById('salida').innerHTML =
-    VISTA==='camp' ? vistaCampanas(d) : VISTA==='form' ? vistaFormatos(d) : vistaAgente(d);
+    VISTA==='bib'  ? vistaBiblioteca() :
+    VISTA==='camp' ? vistaCampanas(d)  :
+    VISTA==='form' ? vistaFormatos(d)  : vistaAgente(d);
+}
+
+/* ---------- 🎞️ BIBLIOTECA DE CREATIVOS ---------- */
+let BIB=null, CREATIVO=null, METRICA='roas';
+const FIL={q:'',temp:'',ang:'',fmt:'',rend:''};
+const T_CLS={'Frío':'t-frio','Templado':'t-templado','Caliente':'t-caliente'};
+const GRAD={'Frío':['#1090e0','#6338c9'],'Templado':['#e0a020','#c96a38'],
+            'Caliente':['#d43a5a','#8c1f3d'],'':['#6b7280','#3c4250']};
+
+async function cargarBiblioteca(){
+  const c=cfg(); if(!c) return;
+  document.getElementById('salida').innerHTML='<div class="load">Ordenando tus creativos…</div>';
+  try{
+    const r=await fetch('/api/biblioteca',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:c.token,cuenta:c.cuenta,rango:document.getElementById('selRango').value})});
+    const d=await r.json();
+    if(!d.ok){document.getElementById('salida').innerHTML='<div class="err">'+esc(d.error)+'</div>';return;}
+    BIB=d; pinta();
+  }catch(e){document.getElementById('salida').innerHTML='<div class="err">No se pudo cargar la biblioteca.</div>';}
+}
+function filtrar(k,v){ FIL[k]=(FIL[k]===v?'':v); pinta(); }
+function buscar(v){ FIL.q=v.toLowerCase(); pinta(); }
+function abrirCreativo(i){ CREATIVO=BIB.fichas[i]; METRICA='roas'; pinta(); window.scrollTo(0,0); }
+function cerrarCreativo(){ CREATIVO=null; pinta(); }
+function cambiarMetrica(m){ METRICA=m; pinta(); }
+
+function chips(et,clave,valores,puntos){
+  return `<div class="filtro"><span class="et">${et}</span>
+    ${valores.map(v=>`<button class="chip ${FIL[clave]===v?'on':''}" onclick="filtrar('${clave}','${esc(v)}')">
+      ${puntos?`<span class="pt" style="background:${puntos[v]||'var(--m)'}"></span>`:''}${esc(v)}</button>`).join('')}</div>`;
+}
+
+function vistaBiblioteca(){
+  if(!BIB) return '<div class="load">Cargando…</div>';
+  if(CREATIVO) return vistaCreativo(CREATIVO);
+  const f=BIB.fichas.filter(x=>
+    (!FIL.q || x.ad_name.toLowerCase().includes(FIL.q) || x.etiqueta.toLowerCase().includes(FIL.q)) &&
+    (!FIL.temp || x.temp_nombre===FIL.temp) && (!FIL.ang || x.angulo===FIL.ang) &&
+    (!FIL.fmt || x.formato===FIL.fmt) &&
+    (!FIL.rend || x.etiqueta_rend===FIL.rend));
+
+  let h=`<div class="kpis" style="margin-bottom:16px">
+    <div class="kpi"><div class="n">${BIB.total}</div><div class="l">Creativos</div></div>
+    <div class="kpi"><div class="n g">${BIB.ganadores}</div><div class="l">Ganadores</div></div>
+    <div class="kpi"><div class="n">${BIB.en_test}</div><div class="l">En test</div></div>
+    <div class="kpi"><div class="n">${eur(BIB.inversion)}</div><div class="l">Inversión total</div></div>
+  </div>
+  <input class="buscar" type="search" placeholder="🔍 Buscar creativo por nombre…" value="${esc(FIL.q)}"
+         oninput="buscar(this.value)">`;
+
+  h+=chips('Temperatura','temp',BIB.temperaturas,{'Frío':'var(--b)','Templado':'var(--a)','Caliente':'var(--r)'});
+  if(BIB.angulos.length) h+=chips('Ángulo','ang',BIB.angulos);
+  if(BIB.formatos.length) h+=chips('Formato','fmt',BIB.formatos);
+  h+=chips('Rendimiento','rend',['GANADOR','EN TEST','APAGAR','POCOS DATOS']);
+
+  if(!f.length) return h+'<div class="card empty" style="margin-top:16px">Ningún creativo con esos filtros.</div>';
+
+  h+='<div class="rejilla">'+f.map(x=>{
+    const i=BIB.fichas.indexOf(x), g=GRAD[x.temp_nombre]||GRAD[''];
+    const flecha=x.tendencia.dir==='sube'?'▲':(x.tendencia.dir==='baja'?'▼':'→');
+    const col=x.tendencia.dir==='sube'?'var(--g)':(x.tendencia.dir==='baja'?'var(--r)':'var(--m)');
+    return `<button class="cre-card" onclick="abrirCreativo(${i})">
+      <div class="miniatura" style="background:linear-gradient(140deg,${g[0]},${g[1]})">
+        <span class="tipo">${esc((x.tipo||x.formato||'').toUpperCase().slice(0,10))}</span>
+        <span class="rend ${x.etiqueta_cls}">${esc(x.etiqueta_rend)}</span>
+        <span class="play">▶</span></div>
+      <div class="cuerpo">
+        <div class="tit">${esc(x.etiqueta)}</div>
+        <div class="cre-chips">
+          ${x.temp_nombre?`<span class="tchip ${T_CLS[x.temp_nombre]||'t-sin'}">${esc(x.temp_nombre)}</span>`:''}
+          ${x.angulo?`<span class="tchip ang">${esc(x.angulo)}</span>`:''}</div>
+        <div class="pie">
+          <div><b>${eur(x.spend)}</b><span>gasto</span></div>
+          <div><b>${x.hook_rate}%</b><span>hook</span></div>
+          <div><b style="color:${col}">${flecha} ${x.roas}</b><span>ROAS</span></div>
+        </div></div></button>`;}).join('')+'</div>';
+  return h;
+}
+
+function grafico(serie,metrica){
+  const datos=serie.filter(d=>d.spend>0);
+  if(datos.length<2) return '<div class="card empty">Aún no hay días suficientes para dibujar la evolución.</div>';
+  const W=760,H=230,ML=52,MR=14,MT=18,MB=30;
+  const vals=datos.map(d=>d[metrica]||0);
+  let min=Math.min(...vals), max=Math.max(...vals);
+  if(min===max){min=min*0.9;max=max*1.1||1;}
+  const x=i=>ML+i*(W-ML-MR)/(datos.length-1);
+  const y=v=>MT+(H-MT-MB)*(1-(v-min)/(max-min));
+  const pts=datos.map((d,i)=>[x(i),y(d[metrica]||0)]);
+  const linea=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area=linea+` L${pts[pts.length-1][0].toFixed(1)} ${H-MB} L${pts[0][0].toFixed(1)} ${H-MB} Z`;
+  const fmt=v=>metrica==='roas'?v.toFixed(2)+'x':(metrica==='ventas'?Math.round(v):
+             (metrica==='ctr'?v.toFixed(2)+'%':eur(v)));
+  const dia=s=>{const p=(s||'').split('-');return p.length===3?p[2]+'/'+p[1]:s;};
+  const ticks=[min,(min+max)/2,max];
+  return `<div class="grafico"><svg viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="Evolución de ${metrica} día a día">
+    ${ticks.map(t=>`<line x1="${ML}" y1="${y(t).toFixed(1)}" x2="${W-MR}" y2="${y(t).toFixed(1)}"
+        stroke="var(--line)" stroke-dasharray="3 4"/>
+      <text x="${ML-9}" y="${(y(t)+4).toFixed(1)}" text-anchor="end" font-size="11"
+        fill="var(--muted)">${fmt(t)}</text>`).join('')}
+    <path d="${area}" fill="var(--v)" opacity=".10"/>
+    <path d="${linea}" fill="none" stroke="var(--v)" stroke-width="2.5"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${pts[pts.length-1][0].toFixed(1)}" cy="${pts[pts.length-1][1].toFixed(1)}"
+            r="4.5" fill="var(--v)"/>
+    ${[0,Math.floor((datos.length-1)/2),datos.length-1].map(i=>
+      `<text x="${x(i).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="11"
+        fill="var(--muted)">${dia(datos[i].dia)}</text>`).join('')}
+  </svg></div>`;
+}
+
+function vistaCreativo(x){
+  const g=GRAD[x.temp_nombre]||GRAD[''], s=x.salud;
+  const ic={sano:'✓',vigilar:'!',quemado:'✕'}[s.estado]||'·';
+  const flecha=x.tendencia.dir==='sube'?'▲':(x.tendencia.dir==='baja'?'▼':'→');
+  const col=x.tendencia.dir==='sube'?'var(--g)':(x.tendencia.dir==='baja'?'var(--r)':'var(--m)');
+  const datos=x.serie.filter(d=>d.spend>0);
+  let h=`<button class="volver" onclick="cerrarCreativo()">← Volver a la biblioteca</button>
+    <div class="ficha-cab">
+      <div class="mini" style="background:linear-gradient(140deg,${g[0]},${g[1]})">▶</div>
+      <div style="flex:1;min-width:220px">
+        <div style="font-weight:800;font-size:20px">${esc(x.etiqueta)}</div>
+        <div class="adname">${esc(x.ad_name)}</div>
+        <div class="cre-chips" style="margin-top:8px">
+          ${x.temp_nombre?`<span class="tchip ${T_CLS[x.temp_nombre]||'t-sin'}">${esc(x.temp_nombre)}</span>`:''}
+          ${x.angulo?`<span class="tchip ang">${esc(x.angulo)}</span>`:''}
+          ${x.tipo?`<span class="tchip t-sin">${esc(x.tipo)}</span>`:''}</div>
+      </div>
+      <span class="pill ${x.etiqueta_cls==='g'?'p-g':(x.etiqueta_cls==='a'?'p-a':(x.etiqueta_cls==='r'?'p-r':'p-m'))}">${esc(x.etiqueta_rend)}</span>
+    </div>
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="n">${eur(x.spend)}</div><div class="l">Inversión</div></div>
+      <div class="kpi"><div class="n">${x.purchases}</div><div class="l">Ventas</div></div>
+      <div class="kpi"><div class="n" style="color:${col}">${flecha} ${x.roas}</div><div class="l">ROAS · ${esc(x.tendencia.texto)}</div></div>
+      <div class="kpi"><div class="n">${s.frecuencia}</div><div class="l">Frecuencia</div></div>
+    </div>
+    <div class="salud s-${s.estado}"><div class="ic">${ic}</div>
+      <div><div class="tit">${esc(s.titulo)}</div><div class="txt">${esc(s.texto)}</div></div></div>`;
+
+  const dg=x.diag||{pasos:[],replicar:[],arreglar:[]};
+  h+=`<div class="card"><div class="diag" style="margin-top:0">
+      <div class="res">🔍 ${esc(dg.resumen||'')}</div>
+      ${dg.pasos.map(p=>`<div class="paso"><span class="ic">${p.ok?'✅':'⚠️'}</span>
+        <span class="fase">${esc(p.fase)}</span>
+        <span>${esc(p.texto)}<br><span class="dato">${esc(p.dato)}</span></span></div>`).join('')}
+    </div></div>`;
+
+  if(datos.length>1){
+    h+='<h2 class="v">📈 Evolución día a día</h2><p class="h2sub">Cómo se ha ido comportando este creativo.</p>';
+    h+='<div class="metricas">'+[['roas','ROAS'],['cpa','CPA'],['ventas','Ventas'],['ctr','CTR'],['spend','Gasto']]
+       .map(m=>`<button class="chip ${METRICA===m[0]?'on':''}" onclick="cambiarMetrica('${m[0]}')">${m[1]}</button>`).join('')+'</div>';
+    h+=grafico(x.serie,METRICA);
+    h+='<h2>📋 Detalle diario</h2><div class="tbl" style="margin-top:12px"><table><thead><tr>'+
+       '<th>Día</th><th>Gasto</th><th>CTR</th><th>Ventas</th><th>CPA</th><th>ROAS</th></tr></thead><tbody>'+
+       datos.slice().reverse().map(d=>`<tr><td>${esc(d.dia)}</td><td>${eur(d.spend)}</td>
+         <td>${d.ctr}%</td><td>${d.ventas}</td><td>${d.ventas?eur(d.cpa):'—'}</td>
+         <td style="font-weight:700;color:${d.roas>=2?'var(--g)':(d.roas>=1?'var(--a)':'var(--r)')}">${d.roas}</td></tr>`).join('')+
+       '</tbody></table></div>';
+  }
+  return h;
 }
 
 /* ---------- copiar ---------- */

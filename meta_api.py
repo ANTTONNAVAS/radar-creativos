@@ -368,3 +368,51 @@ def account_summary(rows):
         "roas": roas,
         "cpa": cpa,
     }
+
+
+def serie_diaria_ads(token, account, date_preset="last_14d", time_range=None):
+    """Día a día de CADA anuncio en una sola llamada (time_increment=1).
+
+    Es lo que permite dibujar la evolución de un creativo sin esperar a
+    acumular histórico: Meta ya guarda el desglose por día, solo hay que
+    pedírselo. Devuelve {ad_id: [ {dia, spend, ventas, roas, cpa, ctr}, ... ]}.
+    """
+    if not token or not account:
+        raise MetaError("Falta el token o el ID de cuenta.")
+    params = {
+        "level": "ad",
+        "fields": "ad_id,ad_name,spend,impressions,frequency,"
+                  "unique_inline_link_click_ctr,actions,action_values,purchase_roas",
+        "time_increment": 1,
+        "use_unified_attribution_setting": "true",
+        "limit": 500,
+        "access_token": token,
+    }
+    if time_range:
+        params["time_range"] = json.dumps(time_range)
+    else:
+        params["date_preset"] = date_preset
+
+    out = {}
+    data = _get(f"act_{account}/insights", params)
+    for r in data.get("data", []):
+        spend = _f(r.get("spend"))
+        ventas = _pick(r.get("actions", []), PURCHASE_PRI)
+        ingresos = _pick(r.get("action_values", []), PURCHASE_PRI)
+        roas_l = r.get("purchase_roas", [])
+        roas = _f(roas_l[0].get("value")) if roas_l else (ingresos / spend if spend else 0.0)
+        out.setdefault(r.get("ad_id", ""), []).append({
+            "dia": r.get("date_start", ""),
+            "nombre": r.get("ad_name", ""),
+            "spend": round(spend, 2),
+            "ventas": int(ventas),
+            "ingresos": round(ingresos, 2),
+            "roas": round(roas, 2),
+            "cpa": round(spend / ventas, 2) if ventas else 0.0,
+            "ctr": round(_f(r.get("unique_inline_link_click_ctr")), 2),
+            "frecuencia": round(_f(r.get("frequency")), 2),
+            "impresiones": int(_f(r.get("impressions"))),
+        })
+    for v in out.values():
+        v.sort(key=lambda x: x["dia"])
+    return out

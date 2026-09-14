@@ -180,6 +180,10 @@ def analiza(rows):
         "gasto_total": gasto_total,
         "ventas": ventas,
         "n_creativos": len(creativos),
+        # Todos, incluidos los que aún tienen pocos datos: la biblioteca los
+        # enseña igual (existen y hay que poder buscarlos), aunque el agente
+        # todavía no se moje con ellos.
+        "creativos": creativos,
         "ganadores": sorted([c for c in creativos if c["estado"] == "ganador"],
                             key=lambda x: -x["score"]),
         "promesas": sorted([c for c in creativos if c["estado"] == "promesa"],
@@ -411,3 +415,94 @@ def texto_para_ia(d):
         "avatar y escenario, NUNCA el guion que ya gana. Nombra cada creativo con su número de "
         "variante exacto. Dime primero qué vas a hacer para que lo revise antes de escribirlo.")
     return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# BIBLIOTECA DE CREATIVOS — organizada por temperatura y ángulo,
+# con la evolución de cada uno y aviso de fatiga.
+# ---------------------------------------------------------------------------
+TEMPERATURA = {"TOFFU": ("frio", "Frío"), "MOFFU": ("templado", "Templado"),
+               "BOFFU": ("caliente", "Caliente")}
+
+FREC_FATIGA = 3.5      # a partir de aquí el público empieza a estar quemado
+FREC_AVISO = 2.5
+
+
+def tendencia(serie, metrica="roas"):
+    """¿Viene subiendo o bajando? Compara la primera mitad del periodo con la
+    segunda. Devuelve el % de cambio y una palabra: sube / baja / estable."""
+    datos = [d for d in (serie or []) if d.get("spend", 0) > 0]
+    if len(datos) < 4:
+        return {"pct": 0, "dir": "nuevo", "texto": "pocos días para ver tendencia"}
+    mitad = len(datos) // 2
+    def _media(xs):
+        vals = [x.get(metrica, 0) for x in xs]
+        return sum(vals) / len(vals) if vals else 0.0
+    antes, ahora = _media(datos[:mitad]), _media(datos[mitad:])
+    if not antes:
+        return {"pct": 0, "dir": "nuevo", "texto": "sin referencia anterior"}
+    pct = round((ahora - antes) / antes * 100)
+    if pct >= 8:
+        return {"pct": pct, "dir": "sube", "texto": f"viene subiendo ({pct:+d}%)"}
+    if pct <= -8:
+        return {"pct": pct, "dir": "baja", "texto": f"viene bajando ({pct:+d}%)"}
+    return {"pct": pct, "dir": "estable", "texto": "estable"}
+
+
+def salud(serie, tend):
+    """Fatiga del creativo: la frecuencia sube y el rendimiento baja = quemado."""
+    ultimos = [d for d in (serie or []) if d.get("spend", 0) > 0][-3:]
+    frec = max((d.get("frecuencia", 0) for d in ultimos), default=0)
+    if frec >= FREC_FATIGA and tend["dir"] == "baja":
+        return {"estado": "quemado", "titulo": "Creativo quemado",
+                "texto": f"Frecuencia en {frec:.1f} y cayendo: el público ya lo ha "
+                         "visto demasiadas veces. Toca renovarlo o ampliar público.",
+                "frecuencia": round(frec, 1)}
+    if frec >= FREC_AVISO:
+        return {"estado": "vigilar", "titulo": "Ojo a la frecuencia",
+                "texto": f"Frecuencia en {frec:.1f}. Aún aguanta, pero prepara ya "
+                         "la siguiente variante.",
+                "frecuencia": round(frec, 1)}
+    return {"estado": "sano", "titulo": "Creativo sano",
+            "texto": f"Frecuencia en {frec:.1f} y tendencia {tend['dir']}. "
+                     "Sin señales de fatiga por ahora.",
+            "frecuencia": round(frec, 1)}
+
+
+def _etiqueta_rendimiento(c):
+    """La pegatina que se ve en la esquina de la tarjeta."""
+    return {"ganador": ("GANADOR", "g"), "promesa": ("EN TEST", "a"),
+            "matar": ("APAGAR", "r")}.get(c["estado"], ("POCOS DATOS", "m"))
+
+
+def biblioteca(rows, series):
+    """La biblioteca completa: cada creativo con su temperatura, su ángulo,
+    su tendencia, su salud y su evolución día a día."""
+    an = analiza(rows)
+    por_id = {}
+    for r in rows:
+        por_id[(r.get("name") or "").strip()] = r.get("id") or ""
+
+    fichas = []
+    for c in an["creativos"]:
+        ad_id = por_id.get(c["ad_name"], "")
+        serie = series.get(ad_id, [])
+        tend = tendencia(serie)
+        temp_k, temp_n = TEMPERATURA.get(c["embudo"], ("", "Sin clasificar"))
+        etq, etq_cls = _etiqueta_rendimiento(c)
+        fichas.append({**c, "ad_id": ad_id, "temp": temp_k, "temp_nombre": temp_n,
+                       "tendencia": tend, "salud": salud(serie, tend),
+                       "serie": serie, "etiqueta_rend": etq, "etiqueta_cls": etq_cls})
+
+    fichas.sort(key=lambda f: -f["spend"])
+    return {
+        "fichas": fichas,
+        "total": len(fichas),
+        "ganadores": sum(1 for f in fichas if f["estado"] == "ganador"),
+        "en_test": sum(1 for f in fichas if f["estado"] == "promesa"),
+        "inversion": round(sum(f["spend"] for f in fichas), 2),
+        "mejor_roas": max((f["roas"] for f in fichas), default=0),
+        "temperaturas": sorted({f["temp_nombre"] for f in fichas if f["temp"]}),
+        "angulos": sorted({f["angulo"] for f in fichas if f["angulo"]}),
+        "formatos": sorted({f["formato"] for f in fichas}),
+    }
