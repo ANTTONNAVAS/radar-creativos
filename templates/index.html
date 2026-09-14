@@ -200,6 +200,56 @@
   .guion .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--muted);
             min-width:52px;flex-shrink:0;padding-top:2px}
   .guion .b{font-weight:700;min-width:78px;flex-shrink:0}
+
+  /* ---------- 🗓️ protocolo semanal ---------- */
+  .proto{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px}
+  .proto .hoy{display:flex;gap:13px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+  .proto .dia{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+              padding:5px 12px;border-radius:8px;color:#fff;background:var(--v)}
+  .proto .dia.mirar{background:var(--m)}
+  .proto h3{margin:0;font-size:20px;font-weight:800}
+  .proto .exp{color:var(--muted);font-size:13.5px;margin:6px 0 15px}
+  .tarea{display:flex;gap:11px;padding:11px 0;border-top:1px solid var(--line);align-items:flex-start}
+  .tarea:first-of-type{border-top:none}
+  .tarea .mk{width:20px;height:20px;border-radius:6px;background:var(--v-bg);color:var(--v);
+             font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;
+             flex-shrink:0;margin-top:2px}
+  .tarea .q{font-weight:700;font-size:14px}
+  .tarea .d{font-size:13px;color:var(--muted);margin-top:1px}
+  .semana{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
+  .sdia{flex:1;min-width:74px;text-align:center;border:1px solid var(--line);border-radius:10px;
+        padding:9px 5px;background:var(--bg)}
+  .sdia .n{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .sdia .t{font-size:11px;margin-top:3px;color:var(--muted);line-height:1.25}
+  .sdia.act{background:var(--v-bg);border-color:var(--v)}
+  .sdia.act .n,.sdia.act .t{color:var(--v)}
+  .sdia.hoy{background:var(--ink);border-color:var(--ink)}
+  .sdia.hoy .n,.sdia.hoy .t{color:#fff}
+
+  /* ---------- 🥧 reparto del presupuesto ---------- */
+  .rep{display:flex;gap:13px;align-items:center;flex-wrap:wrap;padding:13px 0;border-top:1px solid var(--line)}
+  .rep:first-of-type{border-top:none}
+  .rep .nom{flex:1;min-width:150px;font-weight:700;font-size:14px}
+  .rep .nom small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+  .barra{flex:1;min-width:130px;height:9px;background:var(--m-bg);border-radius:20px;position:relative}
+  .barra i{position:absolute;left:0;top:0;bottom:0;border-radius:20px;background:var(--v)}
+  .barra u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.45}
+  .rep .pcts{font-size:12.5px;font-weight:700;min-width:86px;text-align:right;font-variant-numeric:tabular-nums}
+  .rep .pcts small{display:block;font-weight:400;font-size:11px;color:var(--muted)}
+  .rep.alto .barra i{background:var(--r)} .rep.bajo .barra i{background:var(--a)}
+  .rep.ok .barra i{background:var(--g)}
+
+  /* ---------- 📅 comparativa ---------- */
+  .comp{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:10px}
+  .ccard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .ccard .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .ccard .n{font-size:19px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+  .ccard .v{font-size:12px;font-weight:700;margin-top:3px}
+  .ccard .a{font-size:11px;color:var(--muted)}
+  .ccard.mejor{border-color:#bfe6d2;background:var(--g-bg)} .ccard.mejor .v{color:var(--g)}
+  .ccard.peor{border-color:#f3c2cc;background:var(--r-bg)} .ccard.peor .v{color:var(--r)}
+  .ccard.igual .v,.ccard.neutro .v{color:var(--m)}
+  .presu{margin-top:5px;font-size:11.5px;font-weight:600;color:var(--v)}
 </style>
 </head>
 <body>
@@ -313,7 +363,9 @@ function vistaCampanas(d){
     <div class="kpi"><div class="n">${(t.s?t.r/t.s:0).toFixed(2)}</div><div class="l">ROAS</div></div>
     <div class="kpi"><div class="n">${t.p?eur(t.s/t.p):'—'}</div><div class="l">Coste por venta</div></div>
   </div>`;
+  h+=vistaComparativa(d);
   h+=vistaEmbudo(d.embudo);
+  h+=vistaReparto(d);
   h+='<h2>📊 Tus campañas</h2><p class="h2sub">Dónde va el dinero y qué devuelve cada una.</p>';
   h+='<div class="tbl"><table><thead><tr><th>Campaña</th><th>Gasto</th><th>CPM</th><th>CTR</th>'+
      '<th>Visitas</th><th>Carritos</th><th>Ventas</th><th>Coste/venta</th><th>ROAS</th></tr></thead><tbody>';
@@ -453,7 +505,8 @@ async function desactivarAgente(ev){
 
 function vistaAgente(d){
   const P=plan(d);
-  let h=bloqueAgente24();
+  let h=vistaProtocolo(d);          // lo primero: qué toca hacer HOY
+  h+=bloqueAgente24();
   h+=`<div class="plan">
     <h3>🤖 Tu plan de esta semana</h3>
     <div class="sub">Calculado con lo que está pasando ahora mismo en tu cuenta.</div>
@@ -509,6 +562,52 @@ function pinta(){
     VISTA==='conj' ? vistaConjuntos(d) : vistaAgente(d);
 }
 
+/* ---------- 🗓️ PROTOCOLO SEMANAL ---------- */
+function vistaProtocolo(d){
+  const p=d.protocolo; if(!p) return '';
+  return `<div class="proto">
+    <div class="hoy"><span class="dia ${p.clave==='mirar'?'mirar':''}">${esc(p.hoy)}</span>
+      <h3>${esc(p.titulo)}</h3></div>
+    <p class="exp">${esc(p.explica)}</p>
+    ${p.tareas.map((t,i)=>`<div class="tarea"><div class="mk">${i+1}</div>
+      <div><div class="q">${esc(t.hacer)}</div><div class="d">${esc(t.detalle)}</div></div></div>`).join('')}
+    <div class="semana">${p.semana.map(s=>`<div class="sdia ${s.hoy?'hoy':(s.clave!=='mirar'?'act':'')}">
+      <div class="n">${esc(s.dia.slice(0,3))}</div>
+      <div class="t">${esc(s.clave==='escalar'?'Escalar y cortar':(s.clave==='inyectar'?'Inyectar creativos':'Solo mirar'))}</div>
+    </div>`).join('')}</div>
+  </div>`;
+}
+
+/* ---------- 📅 COMPARATIVA con el periodo anterior ---------- */
+function vistaComparativa(d){
+  const c=d.comparativa; if(!c) return '';
+  const fm=(v,f)=>f==='eur'?eur(v):(f==='x'?Number(v).toFixed(2):(f==='pct'?Number(v).toFixed(2)+'%':num(v)));
+  let h='<h2 class="v">📅 Frente al periodo anterior</h2><p class="h2sub">'+esc(c.resumen)+'</p>';
+  if(!c.hay_anterior) return h;
+  h+='<div class="comp">'+c.lineas.map(l=>{
+    const fl=l.pct>0?'▲':(l.pct<0?'▼':'→');
+    return `<div class="ccard ${l.signo}"><div class="l">${esc(l.nombre)}</div>
+      <div class="n">${fm(l.ahora,l.fmt)}</div>
+      <div class="v">${fl} ${l.pct>0?'+':''}${l.pct}%</div>
+      <div class="a">antes ${fm(l.antes,l.fmt)}</div></div>`;}).join('')+'</div>';
+  return h;
+}
+
+/* ---------- 🥧 REPARTO del presupuesto ---------- */
+function vistaReparto(d){
+  const r=d.reparto; if(!r) return '';
+  let h='<h2 class="v">🥧 Reparto del presupuesto</h2>'+
+        '<p class="h2sub">Lo que gastas de verdad frente a lo que persigue el método. '+
+        'La marca oscura es el objetivo.</p><div class="card">';
+  h+=r.lineas.map(l=>`<div class="rep ${l.estado}">
+      <div class="nom">${esc(l.tipo)}<small>${esc(l.para_que)}${l.campanas?' · '+l.campanas+' campaña'+(l.campanas!==1?'s':''):''}</small></div>
+      <div class="barra"><i style="width:${Math.min(l.real,100)}%"></i><u style="left:${l.objetivo}%"></u></div>
+      <div class="pcts">${l.real}% / ${l.objetivo}%<small>${eur(l.gasto)}${l.roas?' · ROAS '+l.roas:''}</small></div>
+    </div>`).join('')+'</div>';
+  if(r.aviso) h+=`<div class="fuga" style="margin-top:0">⚖️ <b>Descompensado:</b> ${esc(r.aviso)}</div>`;
+  return h;
+}
+
 /* ---------- 📉 embudo: del anuncio a la venta ---------- */
 function vistaEmbudo(e){
   if(!e) return '';
@@ -560,7 +659,8 @@ function vistaConjuntos(d){
       <div class="dato"><b>${eur(x.gasto)}</b><span>Gasto</span></div>
       <div class="dato"><b>${x.ventas}</b><span>Ventas</span></div>
       <div class="ver"><span class="pill ${p}">${esc(x.veredicto)}</span>
-        <div class="acc">${esc(x.accion)}</div></div></div>`;}).join('');
+        <div class="acc">${esc(x.accion)}</div>
+        ${x.presupuesto?`<div class="presu">${esc(x.presupuesto.texto)}</div>`:''}</div></div>`;}).join('');
   h+='</div><p class="h2sub" style="margin-top:10px">ℹ️ Un conjunto con poco gasto se marca '+
      '<b>Aprendizaje</b> y no se corta antes de tiempo.</p>';
   return h;

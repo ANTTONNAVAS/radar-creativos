@@ -266,6 +266,9 @@ def get_insights(token, account, level="campaign", date_preset="last_7d",
             "status": status,
             "spend": spend,
             "budget": _budget_str(ent, level),
+            # El presupuesto en número (Meta lo da en céntimos): hace falta
+            # para poder sugerir la cifra exacta a la que subirlo.
+            "budget_num": round(_f(ent.get("daily_budget") or 0) / 100, 2),
             "impressions": impressions,
             "frequency": _f(r.get("frequency")),
             "cpm": _f(r.get("cpm")),

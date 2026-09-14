@@ -88,10 +88,35 @@ def api_radar():
     except Exception:
         out["conjuntos"] = None
 
+    # Cuánto subir o bajar EXACTAMENTE en cada conjunto.
+    if out["conjuntos"]:
+        for c in out["conjuntos"]["lista"]:
+            c["presupuesto"] = radar.presupuesto_sugerido(c)
+
     # Un brief de producción por cada creativo que merece variantes.
     lin = {l["familia"]: l for l in out.get("linaje") or []}
     out["briefs"] = [radar.brief(c, lin.get(c["familia"]))
                      for c in (out["ganadores"] + out["promesas"])]
+
+    # Reparto real del presupuesto frente al que persigue la metodología.
+    out["reparto"] = radar.reparto(camps) if camps else None
+
+    # Este periodo contra el anterior, del mismo tamaño.
+    from datetime import date, timedelta
+    dias = {"last_7d": 7, "last_14d": 14, "last_30d": 30}.get(rango, 7)
+    hoy = date.today()
+    try:
+        previo = meta_api.get_insights(
+            token, cuenta, "ad", rango,
+            time_range={"since": (hoy - timedelta(days=dias * 2 - 1)).isoformat(),
+                        "until": (hoy - timedelta(days=dias)).isoformat()})
+        out["comparativa"] = radar.comparativa(filas, previo)
+    except Exception:
+        out["comparativa"] = None
+
+    # Qué toca hacer HOY según el protocolo semanal.
+    out["protocolo"] = radar.protocolo(hoy.weekday(), out["conjuntos"],
+                                       radar.plan_semanal(out), out["briefs"])
 
     out["ok"] = True
     out["rango"] = rango

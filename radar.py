@@ -658,3 +658,202 @@ def brief(c, linaje_de_familia=None):
         "temperatura": TEMPERATURA.get(c.get("embudo", ""), ("", "sin clasificar"))[1],
         "cuantas": 3 if c["estado"] == "ganador" else 2,
     }
+
+
+# ---------------------------------------------------------------------------
+# 💶 PRESUPUESTO EXACTO — no "sube un 20%", sino "de 30 € pasa a 36 €".
+#
+# Meta reinicia el aprendizaje si el salto es grande, así que nunca se propone
+# más de +50%, y cuanto más ajustado va el ROAS, más suave el paso.
+# ---------------------------------------------------------------------------
+def presupuesto_sugerido(cj, objetivo=ROAS_OBJETIVO):
+    """Cuánto subir o bajar, en euros, y por qué."""
+    act = cj.get("budget_num", 0) or 0
+    roas = cj.get("roas", 0)
+    if cj["veredicto"] == "CORTAR":
+        libera = act if act else cj["gasto"]
+        unidad = "€/día" if act else "€"
+        return {"accion": "apagar", "pct": -100, "nuevo": 0,
+                "texto": f"Apágalo: libera {libera:.2f} {unidad} para lo que sí funciona."}
+    if cj["veredicto"] != "ESCALAR":
+        return None
+    # Cuanto más despegado del objetivo, más margen para subir (tope +50%).
+    holgura = (roas / objetivo) if objetivo else 1
+    pct = 20 if holgura < 1.4 else (35 if holgura < 2 else 50)
+    if not act:
+        return {"accion": "subir", "pct": pct, "nuevo": 0,
+                "texto": f"Sube un {pct}%. El presupuesto de este conjunto vive en la "
+                         "campaña (CBO): tócalo ahí."}
+    nuevo = round(act * (1 + pct / 100), 2)
+    return {"accion": "subir", "pct": pct, "nuevo": nuevo,
+            "texto": f"De {act:.2f} € a {nuevo:.2f} €/día (+{pct}%). "
+                     f"ROAS {roas} sobre un objetivo de {objetivo}."}
+
+
+# ---------------------------------------------------------------------------
+# 🥧 REPARTO DEL PRESUPUESTO — lo que gastas de verdad frente al método.
+#
+# Si el CBO principal se come el presupuesto del testeo, dejas de alimentar la
+# máquina de creativos nuevos y el sistema se apaga solo en unas semanas.
+# ---------------------------------------------------------------------------
+REPARTO_OBJETIVO = [
+    ("CBO Principal", 40, "Escala lo validado", ("cbo principal", "principal", "escala")),
+    ("Testeo", 25, "Prueba creativos y públicos", ("abo", "test", "testeo")),
+    ("Incubadora", 25, "Valida antes de escalar", ("incubadora", "incuba")),
+    ("Retargeting", 10, "Recupera calientes", ("retarget", "rtg", "remarketing")),
+]
+
+
+def _tipo_campana(nombre):
+    n = (nombre or "").lower()
+    for etiqueta, _, _, claves in REPARTO_OBJETIVO:
+        if any(k in n for k in claves):
+            return etiqueta
+    return "CBO Principal" if "cbo" in n else "Testeo"
+
+
+def reparto(campanas):
+    """Cuánto se lleva cada tipo de campaña frente a lo que debería."""
+    total = sum(c.get("spend", 0.0) for c in campanas) or 1
+    grupos = {}
+    for c in campanas:
+        t = _tipo_campana(c.get("name") or c.get("nombre") or "")
+        g = grupos.setdefault(t, {"gasto": 0.0, "ventas": 0, "ingresos": 0.0, "n": 0})
+        g["gasto"] += c.get("spend", 0.0)
+        g["ventas"] += int(c.get("purchases", 0))
+        g["ingresos"] += c.get("revenue", 0.0)
+        g["n"] += 1
+    out = []
+    for etiqueta, obj, para_que, _ in REPARTO_OBJETIVO:
+        g = grupos.get(etiqueta, {"gasto": 0.0, "ventas": 0, "ingresos": 0.0, "n": 0})
+        real = round(g["gasto"] / total * 100)
+        desv = real - obj
+        out.append({
+            "tipo": etiqueta, "para_que": para_que, "campanas": g["n"],
+            "gasto": round(g["gasto"], 2), "real": real, "objetivo": obj,
+            "desvio": desv,
+            "roas": round(g["ingresos"] / g["gasto"], 2) if g["gasto"] else 0,
+            "cpa": round(g["gasto"] / g["ventas"], 2) if g["ventas"] else 0,
+            "estado": "ok" if abs(desv) <= 8 else ("alto" if desv > 0 else "bajo"),
+        })
+    peor = max(out, key=lambda x: abs(x["desvio"]))
+    aviso = None
+    if abs(peor["desvio"]) > 8:
+        cola = ("Estás quitándole dinero al resto del sistema." if peor["desvio"] > 0
+                else "Le estás dando de menos: eso frena la máquina.")
+        aviso = (f"{peor['tipo']} se lleva el {peor['real']}% cuando debería rondar el "
+                 f"{peor['objetivo']}%. {cola}")
+    return {"lineas": out, "total": round(total, 2), "aviso": aviso}
+
+
+# ---------------------------------------------------------------------------
+# 📅 COMPARATIVA — este periodo frente al anterior.
+# ---------------------------------------------------------------------------
+def comparativa(ahora, antes):
+    """Qué ha mejorado y qué ha empeorado respecto al periodo anterior."""
+    def _tot(rows):
+        g = sum(r.get("spend", 0.0) for r in rows)
+        v = sum(int(r.get("purchases", 0)) for r in rows)
+        i = sum(r.get("revenue", 0.0) for r in rows)
+        imp = sum(r.get("impressions", 0) for r in rows)
+        clics = sum(r.get("outbound_unique", 0) for r in rows)
+        return {"gasto": g, "ventas": v, "ingresos": i,
+                "roas": (i / g) if g else 0, "cpa": (g / v) if v else 0,
+                "ctr": (clics / imp * 100) if imp else 0,
+                "cpm": (g / imp * 1000) if imp else 0}
+
+    a, b = _tot(ahora), _tot(antes)
+    # En CPA y CPM, BAJAR es mejorar. La inversión ni mejora ni empeora sola.
+    METRICAS = [("Facturación", "ingresos", "eur", True), ("Ventas", "ventas", "num", True),
+                ("ROAS", "roas", "x", True), ("CPA", "cpa", "eur", False),
+                ("Inversión", "gasto", "eur", None), ("CTR", "ctr", "pct", True),
+                ("CPM", "cpm", "eur", False)]
+    lineas = []
+    for nombre, k, fmt, subir_es_bueno in METRICAS:
+        va, vb = a[k], b[k]
+        pct = round((va - vb) / vb * 100) if vb else 0
+        if subir_es_bueno is None:
+            signo = "neutro"
+        elif not vb:
+            # Antes cero y ahora algo: eso es mejorar, no "sin cambios".
+            signo = "mejor" if (va and subir_es_bueno) else "neutro"
+        else:
+            mejora = pct > 0 if subir_es_bueno else pct < 0
+            signo = "igual" if abs(pct) < 3 else ("mejor" if mejora else "peor")
+        lineas.append({"nombre": nombre, "clave": k, "fmt": fmt,
+                       "ahora": round(va, 2), "antes": round(vb, 2),
+                       "pct": pct, "signo": signo})
+    mejor = [l["nombre"] for l in lineas if l["signo"] == "mejor"]
+    peor = [l["nombre"] for l in lineas if l["signo"] == "peor"]
+    # Sin gasto antes no hay comparación posible: decirlo, no inventar mejoras.
+    if not antes or not b["gasto"]:
+        return {"lineas": lineas, "hay_anterior": False,
+                "resumen": "El periodo anterior no tuvo actividad, así que todavía "
+                           "no hay con qué comparar."}
+    if not peor:
+        resumen = "Periodo mejor que el anterior en todo lo que importa."
+    elif not mejor:
+        resumen = "Periodo peor que el anterior. Toca revisar creativos y públicos."
+    else:
+        resumen = (f"Mejora en {', '.join(mejor[:3]).lower()}; "
+                   f"empeora en {', '.join(peor[:3]).lower()}.")
+    return {"lineas": lineas, "resumen": resumen, "hay_anterior": bool(antes)}
+
+
+# ---------------------------------------------------------------------------
+# 🗓️ PROTOCOLO SEMANAL — dos revisiones fijas, sin tocar nada entre medias.
+#
+# Cambiar cosas a diario reinicia el aprendizaje de Meta y empeora el
+# resultado. Por eso el protocolo dice también cuándo NO hacer nada.
+# ---------------------------------------------------------------------------
+DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+
+RITUALES = {
+    0: ("escalar", "Escalar y cortar",
+        "Sube el presupuesto de lo que va por encima del objetivo y apaga lo que "
+        "lleva días por debajo del breakeven sin recuperarse."),
+    3: ("inyectar", "Inyectar creativos",
+        "Mete los ganadores de la incubadora en el CBO principal y lanza en testeo "
+        "los creativos nuevos de la semana."),
+}
+RITUAL_DIARIO = ("mirar", "Solo mirar",
+                 "Comprueba que ninguna campaña se haya disparado o apagado sola. "
+                 "No se toca nada más: hay que darle tiempo al algoritmo.")
+
+
+def protocolo(hoy_idx, cjs, plan_semana, briefs):
+    """Qué toca hacer HOY, con las acciones concretas sacadas de los datos."""
+    clave, titulo, explica = RITUALES.get(hoy_idx, RITUAL_DIARIO)
+    tareas = []
+    if clave == "escalar":
+        for c in (cjs or {}).get("lista", []):
+            p = presupuesto_sugerido(c)
+            if not p:
+                continue
+            verbo = "Subir" if p["accion"] == "subir" else "Apagar"
+            tareas.append({"hacer": f"{verbo} «{c['nombre']}»", "detalle": p["texto"]})
+        if not tareas:
+            tareas.append({"hacer": "Nada que tocar hoy",
+                           "detalle": "Ningún conjunto cumple para escalar ni para "
+                                      "cortar. Déjalo correr."})
+    elif clave == "inyectar":
+        for b in (briefs or [])[:4]:
+            tareas.append({"hacer": f"Producir {b['cuantas']} variantes · {b['titulo'][8:]}",
+                           "detalle": f"Nómbralas {b['nombre_variante']}"})
+        if plan_semana:
+            tareas.append({"hacer": f"Objetivo de la semana: {plan_semana['total']} creativos",
+                           "detalle": "Lanza en testeo lo nuevo y sube a principal lo validado."})
+        if not tareas:
+            tareas.append({"hacer": "Aún no hay ganadores que clonar",
+                           "detalle": "Sigue testeando ángulos nuevos."})
+    else:
+        tareas.append({"hacer": "No tocar nada",
+                       "detalle": "Hoy no toca revisión. Cambiar cosas a diario reinicia "
+                                  "el aprendizaje y empeora los resultados."})
+    return {
+        "hoy": DIAS[hoy_idx], "clave": clave, "titulo": titulo, "explica": explica,
+        "tareas": tareas,
+        "semana": [{"dia": DIAS[i], "titulo": RITUALES.get(i, RITUAL_DIARIO)[1],
+                    "clave": RITUALES.get(i, RITUAL_DIARIO)[0], "hoy": i == hoy_idx}
+                   for i in range(7)],
+    }
