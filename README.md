@@ -12,14 +12,26 @@ semana** — con el nombre exacto de cada variante.
 
 ## Qué vas a ver
 
-**📊 Campañas** — dónde va tu dinero y qué devuelve cada campaña.
+**📊 Resumen** — cómo va la cuenta, cómo va frente al periodo anterior y
+**dónde se te cae la gente**: del anuncio al clic, a la web, al carrito, a la
+compra.
 
-**🎬 Formatos** — qué *concepto* te funciona (no el anuncio suelto): UGC,
-podcast, antes-después, unboxing… con nota de 0 a 100 y veredicto.
+**🎯 Conjuntos** — qué escalar y qué cortar, con el **presupuesto exacto**: no
+"sube un 20%", sino "de 30 € pasa a 36 €/día". Entra en uno y ves sus creativos.
+
+**🎞️ Creativos** — cada vídeo con su evolución, su estado de salud y el
+diagnóstico de por qué funciona o por qué no.
+
+**📋 Métricas** — la tabla completa, como en el Administrador de Anuncios:
+campañas → conjuntos → anuncios.
 
 **🤖 El Agente** — lo importante:
 
-- **Tu plan de la semana** calculado solo, apuntando a 25-30 creativos
+- **Tu plan de la semana** calculado solo: siempre **25 creativos**, nunca menos
+- **📥 El brief descargable**: un archivo con una ficha por CADA vídeo — su
+  nombre exacto, de qué creativo sale y con qué números, qué conservar, qué
+  corregir, qué cambia en cada copia y cuándo se considera que ha ganado. Se lo
+  das a tu IA y te escribe los guiones de la semana
 - **El porqué de cada creativo**, fase por fase:
 
   > 🔍 *Gana en gancho, guion y promesa — y se rompe en la landing*
@@ -101,3 +113,13 @@ Cada vuelta el sistema sabe un poco más.
 | `nocturno.py` | La ronda de cada madrugada |
 | `store.py` | Lo único que se guarda, y cifrado |
 | `templates/index.html` | La interfaz y la guía |
+
+---
+
+## Aviso honesto
+
+El agente **no produce los vídeos**: prepara el encargo y el porqué, y tu IA
+escribe los guiones. Grabar y montar sigue siendo cosa tuya.
+
+Tampoco toca tu cuenta: el token es de solo lectura, así que **propone** los
+cambios de presupuesto y los aplicas tú. Nada se mueve solo mientras duermes.
